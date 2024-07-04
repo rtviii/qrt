@@ -1,0 +1,537 @@
+---
+title: Communication-efficient algorithms for online distributed multitask learning
+date: "March 6, 2024"
+date-modified: "March 14, 2024"
+author:
+  - name:
+      given: Ying
+      family: Lin
+    email: ying.lin@connect.polyu.hk
+    url: https://linyopt.github.io
+    affiliation:
+      department: Department of Applied Mathematics
+      name: The Hong Kong Polytechnic University
+      city: Hong Kong
+abstract: |
+  This is a short review for the communication-efficient algorithms for online distributed multitask learning.
+keywords:
+  - online optimization
+  - distributed optimization
+  - heterogeneity
+  - communication-efficient algorithm
+  - subgroup analysis
+  - multitask learning
+categories: [online optimization, distributed optimization, multitask learning, communication-efficient algorithms]
+bibliography: references.bib
+number-sections: true
+reference-location: margin
+image: graphs.png
+---
+
+::: {.hidden}
+$$
+\newcommand\dom{\textrm{dom}\,}
+
+\newcommand\argmin{\operatorname*{argmin}}
+\newcommand\reg{\textrm{Regret}}
+\newcommand\sreg{\textrm{S-Regret}}
+\newcommand\dreg{\textrm{D-Regret}}
+\newcommand\sareg{\textrm{SA-Regret}}
+\newcommand\wareg{\textrm{WA-Regret}}
+\newcommand\cr{\textrm{CR}}
+$$
+:::
+
+## Introduction {#sec-introduction}
+Traditional machine learning paradigms involve aggregating data at once and transferring them to a centralized entity for processing and training. 
+This offline centralized manner, however, suffers from significant challenges, including inflexibility in model updating, high communication and storage costs, significant computational demands, and concerns regarding data privacy.
+For a detailed discussion, see [@VWKKVR2020, Section 2]. 
+To address the issues inherent to offline centralized manner, and to accommodate the proliferation of intelligent devices generating mass data as well as increasing concerns regarding privacy, *online distributed learning* has emerged as a paradigm shift [@PKP2006; @YYWYWMHWLJ2019; @CHWZL2020; @VWKKVR2020; @HCNHW2021; @LXL2023; @BPSBBPPC2023].
+This new paradigm enables multiple entities to collaboratively and distributedly train models utilizing their local *online/streaming* data, without sharing them, thereby significantly improving training efficiency and enhancing privacy protection [see @LZZHZL2017; also @VWKKVR2020, Section 5].
+
+Online distributed learning can be simply divided into two components: *online optimization* and *distributed learning*.
+In the field of online optimization, compared to well-developed *online convex optimization* with a long history [@H2021; @LXL2023], the exploration into online *non-convex* optimization remains relatively limited [@X2022Thesis, section 4, 5; @LW2023; @CHWZL2020].
+Additionally, the research also focuses on how to deal with different kinds of streaming data such as stochastic setting [@AY2024] and the multiarmed bandit problem [@H2021, section 6].
+On the other hand, the efficiency of distributed learning is impeded by constraints such as the limited and unbalanced computation resources across nodes in the network and the substantial communication costs.
+These factors pose significant challenges in achieving efficient online distributed learning, leading to a surge of research interests, especially in communication-efficient algorithm design [see @CBDELPZ2023 and references therein] and computation-communication trade-off/balance [@NOR2018; @BBKW2019; @BBG2023].
+
+The goal of distributed learning is typically to obtain a single global model, which assumes *consensus* among all nodes in the network.
+This assumption is based on the premise that the data across different nodes are independently and identically distributed (i.i.d.).
+However, this premise can be violated in many real-world scenarios, especially when the data are collected from multiple sources; see, for example, [@LZT2015; @TLISBEMLDC2022].
+The violation of this assumption, termed *heterogeneity*, complicates the design and analysis of algorithms, particularly those that are gradient-based.
+For instance, decentralized gradient descent (DGD) and its variants [@KMR2012; @NO2009; @CS2012], which employ *average consensus* [@OFM2007] and gradient descent techniques, may diverge or converge to biased solutions when node-specific gradients differ significantly from the global gradient due to heterogeneity.
+To address this issue, numerous studies were presented in the past decades, especially the well-known *gradient tracking* technique; see, for example, [@ZM2010; @XK2018; @PSXN2021; @NOS2017; @LS2016; @QL2018; @LCCC2020; @AY2024] and so forth.
+Its basic idea is that each node keeps tracking a local estimation of the global gradient to eliminate the influences of heterogeneity.
+Based on the assumption of *bounded heterogeneity*, i.e., the differences of local gradients and the global gradient are bounded above, the gradient tracking technique can achieve better performance; see [@X2022Thesis, sections 1.4, 1.5] for detailed discussion and related literature review.
+The assumption of bounded heterogeneity is essential in the convergence analysis of DGD and *decentralized stochastic gradient descent (DSGD)*, especially in the non-convex settings.
+A counterexample that without bounded heterogeneity, DSGD diverges for any constant step-size can be found in [@CHWZL2020].
+Many efforts were made to get rid of such a kind of assumptions, such as the GT-VR framework in [@X2022Thesis, chapter 2, 3; @XKK2020].
+
+The so-called *personalized learning* offers an alternative approach to manage unbounded heterogeneity by allowing nodes to train personalized models distinct from the global model to better cope with heterogeneity [@TYCY2023].
+For instance, as a specific case of personalized learning, *clustered federated learning* [@GCYR2022; @SMS2021; @ABJK2024] aims to classify the nodes in the network into $K$ mutually disjoint clusters with the number of clusters $K$ being known beforehand.
+Within each cluster, the nodes share the same model, resulting in $K$ different models.[^1]
+In the settings that the network is fully decentralized and the number of clusters is unknown in advance, clustered federated learning can be further extended to *subgroup analysis* originated from statistics [@MH2017].
+Following the pioneering work [@MH2017], subgroup analysis is always formulated as an optimization problem with a pairwise fusion regularizer.
+It is also for the pairwise fusion regularizer that subgroup analysis appears frequently with different names in literature, including *network lasso* [@HLB2015], *spatial heterogeneity detection/identification* [@LS2019; @ZLZ2022], *spatial cost minimization* [@LGQKW2022; @LYWR2023], *network cost minimization* [@CL2018; @CL2020], *pairwise constrained optimization* [@CB2020], or a broader topic *multitask learning* [@C1997; @ZY2022; @JBV2008; @ZCY2011; @SCST2017; @KSR2017; @CL2017; @MVU2022; @HWSLJZ2023; @MGL2023; @OK2023; @SCDB2024; @YC2024].
+
+  [^1]: One should be noted that clustered federated learning differs from the conventional clustering in unsupervised learning in that the former clusters models obtained by training on data distributed over different nodes, while the latter clusters the data directly.
+
+The prevalence of unbounded heterogeneity in the real world has led to increased research interest in clustered multitask learning, epitomized by subgroup analysis. 
+However, the lack of a methodological framework analogous to gradient tracking has resulted in a notable paucity of research concerning online, communication-efficient algorithms for this topic.
+
+In [@sec-related-work], we will present some related works in the areas related to the aforementioned problem, including some intuitive understandings and crucial techniques.
+A comprehensive discussion of the problem formulation and challenges will also be provided in [@sec-prob-form-challenges].
+
+## Preliminaries and related work {#sec-related-work}
+In this section, we provide a brief overview of topics and tools that can help us to develop communication-efficient algorithms for online distributed multitask learning.
+We will first review some preliminaries in optimization, particularly the standard form of a convex optimization problem and some classical algorithms to solve it.
+We then discuss separately online optimization, distributed optimization, multitask learning, and communication-efficient algorithms, all of which are topics that have been studied extensively in the past decades.
+For each topic, we will present the problem formulation, performance metrics, state-of-the-art algorithms and some crucial techniques.
+Finally we will combine them together to consider our main goal, a topic still waiting for exploration.
+
+### Preliminaries {#sec-preliminaries}
+Consider the following optimization problem
+$$
+\min_{x \in \Omega}\quad f(x),
+$$ {#eq-convex-opt-prob}
+where $f:  \dom f \to \mathbb{R}$ is a closed convex function with $\inf f > -\infty$ and $\Omega \subseteq \mathbb{R}^n$ is a closed convex set.[^2]
+We shall now review some classical algorithms to solve ([-@eq-convex-opt-prob]).
+The following contents are mainly taken from several classic textbooks, especially [@BV2004; and @NW2006].
+
+[^2]: For the sake of simplicity, here we only consider convex cases to illustrate the algorithms.
+
+#### First-order methods
+
+First-order methods refer to a class of algorithms that only involves the first-order derivative information.
+The most basic and commonly used one is the *gradient descent algorithm*, which uses the negative gradient as the descent direction to reduce the function value.
+When the problem is constrained as in ([-@eq-convex-opt-prob]) with a closed convex set $\Omega$ and a differentiable $f$, a projection step is added, leading to the *projected gradient descent algorithm* with the update scheme being:
+$$
+x^{t + 1} = P_{\Omega}(x^t - \alpha^t \nabla f(x^t)),
+$$ {#eq-projected-gradient-descent}
+where $x^t$ is the target variable in the $t$-th iteration, $P_{\Omega}$ is the projection onto $\Omega$, $\alpha^t$ is the step-size (or learning rate) in the $t$-th iteration, and $\nabla f(x^t)$ is the gradient of $f$ at $x^t$.
+The step-size is crucial in the convergence rate of projected gradient descent algorithm and is always selected via the so-called *line search* techniques, which we will not explore here.
+
+We say that $f$ has $L$-Lipschitz gradient or $f$ is $L$-smooth if for any $x, y \in \dom f$, we have
+$$
+\| \nabla f(x) - \nabla f(y) \| \leq L \| x - y \|,
+$$
+where $\| \cdot \|$ is the Euclidean norm.
+If $f$ has $L$-Lipschitz gradient, the gradient descent algorithm with a carefully select fixed step-size can converge to an optimal solution and the convergence rate with respect to the function value is $O(\frac{1}{k})$.
+
+There are several techniques to accelerate the projected gradient descent algorithms, such as *Nesterov acceleration gradient*, *momentum*, *heavy-ball algorithm* and so on.
+Most of them are based on the idea that information from previous gradients is aggregated to infer the current direction of the update to accelerate and stabilize the algorithm.
+We also note here that the gradient in the update formula can be replaced by the subgradient of $f$, leading to the subgradient descent algorithms.
+
+#### Newton-type methods
+Newton-type methods make use of the second-order information, i.e., the Hessian matrix and the gradient, to construct the update formula.
+Compared to first-order methods, Newton-type methods generally perform better because more information is utilized, at the cost of a stronger requirement, e.g., second-order differentiability for $f$.
+
+The update scheme of the classical Newton method with step-size being fixed to $1$ is
+$$
+x^{t+1} = x^t - \nabla^2 f(x^t)^{-1}\nabla f(x^t),
+$$
+where $\nabla^2f(x^t)^{-1}$ is the inverse of the Hessian matrix of $f$ at $x^t$.
+However, this formula faces several drawbacks:
+
+- It requires to solve a linear system in each iteration, which is expensive.
+- The algorithm is unstable if $\nabla^2f(x^t)$ is not positive definite.
+- If the initial point is too far from the optimal solution, the fixed step-size $1$ makes the iterations unstable.
+
+To address these issues, several variants of Newton methods were proposed, such as *modified Newton methods* that involves line search techniques, *quasi Newton methods*, *semi-Newton method* and so forth.
+
+#### Mirror descent
+This type of algorithms replies on an important notion of *Bregman divergence*, which generalizes the concepts of distances.
+Given a strictly/strongly convex and differentiable function $\phi$, the Bregman divergence with respect to $\phi$ is defined by
+$$
+\mathcal{D}_{\phi}(x, y) := \phi(x) - \phi(y) - \left\langle \nabla\phi(y), x - y \right\rangle.
+$$
+Different $\phi$'s will generate different Bregman divergences.
+For instance, for $\phi(x) = \| x \|^2$, the corresponding Bregman distance is the squared Euclidean distance; the negative entropy function generates the generalized Kullback-Leibler divergence.
+
+Mirror descent acts as the generalization of projected gradient descent algorithm by replacing the Euclidean distance by Bregman divergence with specific $\phi$ to better accommodate specific problems with a particular geometry.
+Then, the standard mirror descent update formula is
+$$
+x^{t+1} = \argmin_{x \in \Omega} \left\{\alpha^t \left\langle x, \nabla f(x^t) \right\rangle + \mathcal{D}_{\phi}(x, x^t)\right\},
+$$
+where $\alpha^t > 0$ is the step-size.
+If $\phi(x) = \| x \|^2 / 2$, then the mirror descent reduces to the projected gradient descent algorithm.
+
+#### Primal-dual algorithms
+The primal-dual algorithms try to combine information from both primal and dual problems to avoid possible issues when only considering primal or dual problem.
+Broadly speaking, it first rewrite the problem as a saddle-point problem, taking a form of a mini-max problem, and then alternatively update primal and dual variables.
+
+Consider the following optimization problem
+$$
+\min_{x \in \Omega}\quad f(x) \quad \text{s.t. } g(x) \leq 0,
+$$
+where $g: \mathbb{R}^n \to \mathbb{R}^m$ and the inequality in the constraint is taken elementwise.
+One can rewrite the problem as a saddle-point problem as
+$$
+\min_{x \in \Omega} \max_{\lambda \in \mathbb{R}^m}\quad L(x, \lambda) := f(x) + \left\langle \lambda, g(x) \right\rangle.
+$$
+Here, $L$ is actually the Lagrangian function (it can also be augmented Lagrangian function), $\lambda$ is the Lagrangian multiplier.
+The update scheme of the standard primal-dual algorithm takes the form as
+$$
+\begin{split}
+  & x^{t+1} = P_{\Omega}(x^t - \alpha^t \nabla_x L(x^t, \lambda^t)), \\
+  & \lambda^{t+1} = \max \{ \lambda_t + \alpha_t \nabla_{\lambda} L(x^t, \lambda^t), 0 \},
+\end{split}
+$$
+where $\nabla_x L(x, \lambda)$ and $\nabla_{\lambda} L(x, \lambda)$ are the gradients of $L$ with respect to $x$ and $\lambda$, respectively.
+
+One of the most famous primal-dual algorithms is the *alternating direction method of multipliers(ADMM)*, which performs very well for separated problem with linear constraints.
+Consider the following optimization problem
+$$
+\begin{aligned}
+  \min_{x \in \mathbb{R}^n, y \in \mathbb{R}^m} & \quad f(x) + g(y) \\
+  \text{s.t. } & \quad Ax + By = c,
+\end{aligned}
+$$
+where $f$ and $g$ are both convex, $A \in \mathbb{R}^{p \times n}$, $B \in \mathbb{R}^{p \times m}$, $c \in \mathbb{R}^p$.
+Given $\beta > 0$, the augmented Lagrangian function is
+$$
+L_{\beta}(x, y, z) = f(x) + g(y) + \left\langle z, Ax + By - c \right\rangle + \frac{\beta}{2} \| Ax + By - c \|^2.
+$$
+ADMM consists of the iterations
+$$
+\begin{aligned}
+  x^{t+1} := &\,\, \argmin_{x} L_{\beta}(x, y^t, z^t), \\
+  y^{t+1} := &\,\, \argmin_{y} L_{\beta}(x^{t+1}, y, z^t), \\
+  z^{t+1} := &\,\, z^t + \beta (Ax^{t+1} + By^{t + 1} - c).
+\end{aligned}
+$$
+There are also several variants of ADMM, such as *proximal ADMM* that adds a proximal term to help solve the subproblem inexactly.
+The ADMM in the non-convex settings is also extensively studied.
+
+#### Derivative-free methods
+Derivative-free methods, also known as zeroth-order methods, aim to solve the optimization problem without using derivative information.
+It is useful in some specific scenarios, especially when the derivative information of the objective function is unavailable, unreliable or impractical to obtain.
+For example, in many real-world applications, one can only obtain the noisy value of the objective function and hence the objective function and its derivative are never revealed.
+
+There are many kinds of derivative-free methods, such as *genetic algorithms*, *pattern search*, *simulated annealing*, *Powell's methods* and so on.
+
+#### Projection-free methods
+In the cases that the projection onto the constraint set $\Omega$ in ([-@eq-convex-opt-prob]) is difficult to compute, the update scheme ([-@eq-projected-gradient-descent]) in projected gradient descent algorithm will be expensive.
+To reduce computational demands, projection-free methods attempt to avoid projection in each iteration.
+The most celebrated projection-free method is the *Frank-Wolfe algorithm*, which considers a linear approximation of the objective function and constructs a descent direction using the solution to the approximated problem.
+In each iteration, the Frank-Wolfe algorithm first solves the following optimization problem
+$$
+s^t := \argmin_{s \in \Omega} \quad \left\langle s, \nabla f(x^t) \right\rangle.
+$$
+Then a descent step is performed with the descent direction being $x^k - s^k$ and the step-size $\alpha^k$ being set to $\frac{2}{k + 2}$ or selected by some line search technique.
+That is,
+$$
+x^{t+1} = x^t - \alpha^t(x^t - s^t).
+$$
+
+#### Stochastic optimization algorithms and variance reduction {#sec-stochastic-vr}
+Stochastic optimization algorithms, just as its name implies, are a class of algorithms that makes use of randomness to solve optimization problems.
+They provide a way to handle a range of challenging optimization problems such as those with high-dimensional nonlinear objective functions or with inherent system noise, and non-convex problems with multiple local optima.
+Stochastic optimization algorithms apply a stochastic strategy where random decisions are engaged to improve efficiency or help jump out of the local optima.
+In this sense, many derivative-free methods are actually stochastic optimization algorithms.
+
+One of the most successful stochastic optimization algorithms is the *stochastic gradient descent (SGD)*, which is frequently used in machine learning.
+It replaces the gradient in ([-@eq-projected-gradient-descent]) by a stochastic gradient, which is a randomly selected approximation of the exact whole gradient of the objective function $f$.
+For example, in machine learning, the objective function can always be written as a sum of a series of functions, i.e., 
+$$
+\min_x f(x) := \frac{1}{N} \sum_{k=1}^N f_k(x).
+$$ {#eq-objective-sum-terms}
+Then a choice of a stochastic gradient in the $t$-th iteration can be $\nabla f_{k^t}(x^t)$ with a random index $k^t \in \{1, 2, \dots , N\}$, instead of $\nabla f(x^t)$.
+This can significantly reduce the computation cost and improve the efficiency of the algorithm, at the sacrifice of stability.
+
+Both the efficiency and instability of SGD come from the randomness, more precisely, the variance.
+To stabilize the stochastic optimization algorithms while still enjoying their efficiency, the so-called *variance reduction (VR)* techniques are always employed [@GSBR2020].
+Classic VR techniques include using a sequence of decreasing step-size $\{\alpha^t\}$; using the averaged mini-batch gradient, i.e., $\frac{1}{|S^t|} \sum_{k\in S^t} \nabla f_k(x^t)$ where $S^t \subseteq \{1, 2, \dots , N\}$ is a randomly selected subset and $|S^t|$ is the number of elements in $S^t$; and the momentum-based technique taking the form as
+$$
+\begin{aligned}
+  m^t = &\,\, \beta m^{t-1} + \nabla f_{k^t}(x^t) \\
+  x^{t+1} = &\,\, x^t - \gamma m^t,
+\end{aligned}
+$$
+where $\beta \in (0, 1)$ and $\gamma > 0$.
+More recently, several modern VR techniques are developed, notably *stochastic average gradient (SAG)*, *SAGA*[^3], *stochastic variance reduction gradient (SVRG)* and *stochastic dual coordinate ascent (SDCA)*.
+
+[^3]: Note that SAGA is exactly the name of this technique, it is not an abbrevation of four words.
+
+***Stochastic average gradient (SAG) and SAGA***. 
+In each iteration, SGD uses the stochastic gradient that only involves information of current point, discarding all information of the historical stochastic gradients.
+This behavior leads to the instability of the algorithm as it approaches convergence, since the descent direction becomes sensitive to the inaccuracy of the gradient.
+In contrast, as the algorithm approaches convergence, the stochastic gradient in the last iteration is also a good approximation of the exact gradient so that we can make use of it.
+SAG is constructed based on such an idea.
+More precisely, SAG keeps $n$ vectors $\{g_k^t\}$, where each $g_k^t$ is used to store the last computed stochastic gradient of $f_k$ in the $t$-th iteration.
+That is, in the $t$-th iteration, $g_k^t$ will update according to
+$$
+g_k^t=\begin{cases}
+  \nabla f_k(x^t) & \text{if } k = k^t \\
+  g_k^{t-1} & \text{otherwise}.
+\end{cases}
+$$
+Therefore, the update scheme of SAG will be
+$$
+x^{t+1} = x^t - \alpha^t \left( \frac{1}{N} \left( \nabla f_{k^t}(x^t) - g_{k^t}^{t-1}\right) + \frac{1}{N} \sum_{k=1}^N g_k^{t-1} \right).
+$$
+SAGA further improves SAG by making sure the approximated gradient to be unbiased.
+Hence, its update formula is
+$$
+x^{t+1} = x^t - \alpha^t \left( \nabla f_{k^t}(x^t) - g_{k^t}^{t-1} + \frac{1}{N} \sum_{k=1}^N g_k^{t-1} \right).
+$$
+
+***Stochastic variance reduction gradient (SVRG)***.
+One of the major drawbacks of SAG and SAGA is the need to store $n$ vectors, which can be expensive when $n$ is large.
+Instead, SVRG regularly caches an *exact* gradient and uses it as a reference of the true gradient in the following iterations until the cache is updated to reduce variance.
+Put it concrete, the $j$-th checkpoint denoted by $\tilde{x}^j$ and the exact gradient $\nabla f(\tilde{x}^j)$ are stored per $m$ iterations.
+The update formula in the following iterations uses the following descent direction
+$$
+v^t = \nabla f_{k^t}(x^t) - \left(\nabla f_{k^t}(\tilde{x}^j) - \nabla f(\tilde{x}^j)\right).
+$$
+Compared to SAG and SAGA, although SVRG does not need to store $n$ vectors, it needs to compute a whole gradient per $m$ iterations and an additional stochastic gradient $\nabla f_{k^t}(\tilde{x}^t)$ in each iteration.
+
+***Stochastic dual coordinate ascent (SDCA)***.
+The dual problem of ([-@eq-objective-sum-terms]) has $N$ dual (scalar) variables, each of which corresponds to an $f_k$.
+The basic idea of SDCA is to solve the dual problem using *stochastic coordinate ascent* [@SZ2013].
+That is, in each iteration, a coordinate is uniformly randomly selected to perform coordinate ascent.
+Finally, the primal solution can be recovered by the dual solution.
+The disadvantages of this technique is that it requires the computation of convex conjugate rather than simply gradient in each iteration.
+
+The aforementioned VR techniques are all based on stochastic gradient descent/ascent.
+There are also research focus on the combination of variance reduction techniques and other stochastic algorithms, such as stochastic ADMM with variance reduction [@S2014; @LSC2017; @LSLKJL2021; @LGSALZ2022; @WXWCQS2023].
+
+### Online optimization {#sec-online-optimization}
+*Online optimization* has received increasing attention due to its adaptability to dynamic environment in many real-world applications [@H2021; @LXL2023].
+It aims to aid a player or a decision maker to pursue success in a dynamic or even adversarial environment.
+Briefly speaking, the player iteratively makes decisions based on historical information and then some prior unknown losses will reveal according to the decisions.
+Put it concrete and mathematical, at $t$-th iteration, the player makes decision $x^t \in \mathcal{K}$, where $\mathcal{K} \subseteq \mathbb{R}^n$ is the decision set, and then a cost function $f_t:\mathcal{K} \to \mathbb{R}$ is revealed.
+In this setting, generally one cannot achieve zero cost as the cost function is unknown beforehand. 
+Hence online optimization is actually minimizing the cost in hindsight.
+This leads to the definition of the performance metric *regret* / *competitive ration* in online optimization.
+
+Depending on settings of applications, the definition of regret may be different; see, for example, [@LXL2023, section 2.3; @H2021, section 1.1 and section 10].
+
+1. When the environment is relatively stable, the *static regret* after $T$ iterations, denoted by $\sreg_T$, is defined as
+$$
+\sreg_T := \sum_{t=1}^T f_t(x^t) - \min_{x \in \mathcal{K}} \sum_{t=1}^T f_t(x).
+$$
+One can notice that if the environment is dynamic and there does not exist a uniform optimal solution for all time, the static regret may lead to a poor performance.
+If there exists a uniform optimal solution for all time, the minimized static regret actually results in the uniform optimal solution.
+Therefore, in some cases, people just consider seeking the uniform optimal solution, such as [@ZAH2021].
+
+2. To address the issue of static regret in dynamic environment, the *dynamic regret*, denoted by $\dreg_T$, can be used.
+$$
+\dreg_T := \sum_{t=1}^T (f_t(x^t) - \min_{x \in \mathcal{K}} f_t(x)).
+$$
+Dynamic regret allows the referred optimal solution to vary from time to time, ensuring better performance in a dynamic or adversarial environment.
+
+3. Dynamic regret is defined over the entire horizon, which can be too strong.
+The *adaptive regret* instead considers only a time region.
+With a fixed time interval $\tau > 0$, the *strongly adaptive regret*, denoted by $\sareg_T$, is defined as
+$$
+\sareg_T := \max_{[r, r + \tau - 1] \subseteq \{1, 2, \dots, T\}} \left\{\sum_{t=r}^{r + \tau - 1} f_t(x^t) - \min_{x \in \mathcal{K}} \sum_{t=r}^{r + \tau - 1} f_t(x)\right\}.
+$$
+Without a fixed time interval, the *weakly adaptive regret*, denoted by $\wareg_T$, is defined as
+$$
+\wareg_T := \max_{[r, s] \subseteq \{1, 2, \dots, T\}} \left\{\sum_{t=r}^s f_t(x^t) - \min_{x \in \mathcal{K}} \sum_{t=r}^s f_t(x)\right\}.
+$$
+
+4. Another metric is the so-called *competitive ratio (CR)*, which considers the ratio other than the difference.
+It is defined as
+$$
+\cr_T := \frac{\sum_{t=1}^T f_t(x^t)}{\min_{x \in \mathcal{K}} \sum_{t=1}^{T} f_t(x)}.
+$$
+
+As dynamic environment always involves randomness, one should try to minimize cost in the worst case, i.e., we are seeking the algorithms that can provide lowest upper bound of regret / competitive ratio.
+
+Nearly all algorithms and techniques mentioned in [@sec-preliminaries] have been generalized to online settings.
+To name but a few, the framework of online convex optimization and online gradient descent were first proposed in [@Z2003]; stochastic optimization algorithms can be treated as a special case of online optimization, see [@H2021, section 3.4]; the first attempt to generalize the Newton method to online settings is the online Newton step algorithm presented in [@HAK2007], followed by many other works such as [@SYG2007; @LTS2021; @CS2021]; online mirror descent is also well studied [@FHPF2022]; primal-dual algorithms were also generalized to online settings [@SS2007; @M2021]; the derivative-free methods were considered in [@LCCH2018; @KSH2023]; the VR techniques in online settings were discussed in [@HL2016; @BKL2018; @BCLK2019; @ZJC2020]; more details can be found in [@LXL2023, section 3; @H2021].
+
+Aside from these algorithms originated from traditional algorithms, the nature of online optimization has led to exploration of novel different algorithms.
+For example, the *machine learning augmented (ML-augmented)* methods consider adding a machine learning-based expert to help the decision maker to make better decisions, where the expert is trained using historical knowledge [@LYWR2023; @SALY2024].
+Another example is the *learning to optimize (L2O)* algorithms [@CCCHLWY2022], which uses learning algorithms to improve the process of optimization itself rather than the obtained solution, thereby perfectly fitting the online settings.
+
+Besides the classical optimization problem, some special optimization problems are also considered in online settings, including online *bilevel optimization* [@TNHSB2022; @LSJLS2023] and online *manifold optimization* [@MMNMS2022; @WTHWS2021].
+Conversely, online optimization also provides a new direction to solve bilevel optimization problem [@SHK2022].
+The *bandit* settings also catch many researchers' attention, where only noisy, partial or incomplete information of the cost function is provides, see [@H2021, section 6] for more details.
+
+### Consensual distributed optimization {#sec-consensual-distributed-opt}
+*Consensual distributed optimization* aims to train a uniform model across several data owners in a communication network.
+More precisely, given a communication network $\mathcal{G} = (\mathcal{V}, \mathcal{E})$, where $\mathcal{V}$ and $\mathcal{E}$ refer to the sets of nodes and edges, each node has its own private data and there is an edge between two nodes in the network if and only if these two nodes can communicate with each other, we are seeking the optimal solution to the following optimization problem
+$$
+\min_{x \in \mathbb{R}^n} F(x) := \sum_{k=1}^K f_k(x),
+$$
+where $K = | \mathcal{V} |$ is the number of nodes in the network; $f_k$ is the cost function of the $k$-th node, constructed based on the local dataset $\mathcal{D}_k$ for $k = 1, 2, \dots, K$.
+Here the consensus is reflected in the fact that all nodes share a uniform target variable (or model parameters) $x$.
+
+*Average-consensus algorithm* [@OFM2007] is a fundamental tool to achieve consensus.
+It updates the local target variable at each node by averaging the target variables from adjacent nodes using a *mixing matrix* associated with the communication network.
+The mixing matrix $W = (w_{ij}) \in \mathbb{R}^{K \times K}$ is a primitive and doubly-stochastic matrix[^4] where $w_{ij} \neq 0$ if and only if $(i, j) \in \mathcal{E}$.
+One can then observe that $W \mathbf{1}_K = \mathbf{1}_K$ and $W^{\top} \mathbf{1}_K = \mathbf{1}_K$, where $\textbf{1}_K \in \mathbb{R}^K$ is an all-one vector.
+The update formula of average-consensus algorithm is
+$$
+\mathbf{x}^{t+1} = (W \otimes I_n) \mathbf{x}^t, 
+$$
+where $\mathbf{x}^{t+1} := ((x_k^{t+1})^{\top})_{i=1}^K \in \mathbb{R}^{Kn}$ with $x_k^{t+1}$ being the target variable at the $i$-th node at iteration $t+1$; $\otimes$ is the Kronecker product and $I_n$ is the $n \times n$ identity matrix.
+Since $W$ is primitive and doubly stochastic, by the Perron-Frobenius theorem, we have
+$$
+\lim_{t\to \infty} W^t = \frac{1}{K} \mathbf{1}_K \mathbf{1}_K^{\top}, 
+$$
+and hence we have
+$$
+\lim_{t\to \infty} \mathbf{x}^t = \lim_{t\to \infty} (W \otimes I_K)^t \mathbf{x}^0 = \mathbf{1}_K \otimes \frac{(\mathbf{1}_K^{\top} \otimes I_n)\mathbf{x}_0 }{K}.
+$$
+That means, average-consensus algorithm can achieve consensus across nodes with the final value related to the initial point at a linear rate of $\lambda_2(W)^k$, where $\lambda_2(W)$ is the second largest singular value of $W$.
+
+[^4]: A squared matrix $M$ is said to be primitive if it is nonnegative and there exists some $k>0$ such that $M^k$ is positive. A squared matrix is said to be doubly-stochastic if it is nonnegative and each of its rows and columns sums to $1$.
+
+Combining average-consensus algorithm with (stochastic) gradient descent, the *distributed gradient descent (DGD)* and the *distributed stochastic gradient descent (DSGD)* can be built.
+The basic strategy is adding an average-consensus step before gradient descent, i.e.,
+$$
+x_k^{t+1} = \sum_{j=1}^K w_{ij} x_j^t - \alpha^t g_k^t, 
+$$
+where $\alpha^t$ is the step-size; $g_k^t$ is the gradient or the stochastic gradient.
+
+However, as what we discussed in [@sec-stochastic-vr], the randomness, which comes from local SGD and the distributed setting,[^5] causes the non-degenerate variance and leads to instability of the algorithm.
+Moreover, the heterogeneity between different nodes can further deteriorate the stability of the algorithm.
+This then leads to the consideration of posing more assumptions and applying advanced techniques.
+Typical assumptions are:
+
+1. the $L$-smoothness of each $f_k$;
+
+2. *bounded variance* of each local stochastic gradient $g_k^t$, i.e., there exists some $\nu > 0$ such that
+$$
+\sup_{i, t} \mathbb{E} \left[ \| g_k^t - \nabla f_k(x_k^t) \|^2 \right] \leq \nu^2; 
+$$
+
+3. *bounded heterogeneity* between the local and the global gradient, i.e., there exists some $\mu > 0$ such that
+$$
+\sup_{x \in \mathbb{R}^n} \frac{1}{N} \sum_{k=1}^N \| \nabla f_k(x) - \nabla F(x) \|^2 \leq \mu^2.
+$$
+
+[^5]: In the distributed setting, the data are randomly distributed to nodes, introducing more randomness.
+
+In addition to the above assumptions, the *gradient tracking (GT)* technique is always applied to construct the *GT-DGD* algorithm to further improve the stability of DGD [@XK2018; @NOS2017; @LS2016; @QL2018].
+Before moving on to the introduction of GT, we first discuss briefly the reason to do so.
+Suppose that DGD starts from an initial point that happens to be a stationary point $x^{*}$ of $F$.
+Ideally DGD should immediately terminate.
+However, according to the update scheme, one has
+$$
+x_k^1 = \sum_{j=1}^N w_{ij} x^{*} - \alpha^1 \nabla f_k(x^{*}) = x^{*} - \alpha^1 \nabla f_k(x^{*}) \neq x^{*},
+$$
+where the last inequality comes from the general fact that $f_k \neq F$.
+In other words, the local optimality condition does not meet even if the global optimality condition is satisfied.
+To address this issue, GT keeps an estimation of the global gradient and uses it as the descent direction.
+All in all, the GT-DGD performs update as
+$$
+\begin{aligned}
+  x_k^{t+1} &= \sum_{j=1}^N w_{ij} x_j^t - \alpha^t y_k^t, \\
+  y_k^{t+1} &= \sum_{j=1}^N w_{ij} y_j^t + \nabla f_k(x_k^{t+1}) - \nabla f_k(x_k^t),
+\end{aligned}
+$$
+with $y_k^0 = \nabla f_k(x_k^0)$ for all $i$.
+Notice that GT-DGD uses the exact gradient instead of the stochastic gradient to update $y_k^t$.
+To further accelerate the algorithm, one can replace the exact gradient by the approximated gradient obtained by stochastic gradient and VR techniques described in [@sec-stochastic-vr].
+This leads to the GT-VR framework and related algorithms in [@X2022Thesis, section 2; @XKK2020], as well as some other algorithms based on GT and VR [@LCCC2020].
+
+Before the advent of GT and VR, *EXTRA* has already achieved linear convergence rate for strongly convex $F$ (not $f_k$) [@SLWY2015].
+EXTRA can be regarded as a corrected DGD as following
+$$
+\mathbf{x}^{t+1} = \underbrace{W\mathbf{x}^t - \alpha \nabla \mathbf{f} (\mathbf{x}^t)}_{\text{DGD}} + \underbrace{\sum_{i=0}^{t - 1} (W - \overline{W})\mathbf{x}^i}_{\text{corrections}} \quad \forall t = 0, 1, \dots,
+$$
+where $\alpha$ is the step-size; $W$ and $\overline{W}$ are two mixing matrices satisfying some conditions [@SLWY2015, assumption 1]; $\nabla \mathbf{f}(\mathbf{x}) = \left(\nabla f_k(x_k)^{\top}\right)_{k=1}^K \in \mathbb{R}^{K \times n}$.
+Indeed, given $W$ and $\overline{W}$, the update formula is
+$$
+\mathbf{x}^{t+2} = (I + W)\mathbf{x}^{t+1} - \overline{W}\mathbf{x}^t - \alpha [\nabla \mathbf{f}(\mathbf{x}^{t+1}) - \nabla \mathbf{f}(\mathbf{x}^t) ].
+$$
+
+The above discussions are all based on first-order algorithms for classic optimization problems.
+There are also several different types of algorithms can be applied to consensual distributed optimization.
+To just mention a few, the primal-dual algorithms in [@LLZ2020; @SFMTJJ2018]; the Newton's method in [@LZSL2023; @ZLSL2023]; and so on.
+Some special optimization problems are also considered in the distributed settings, such as manifold optimization [@WL2022; @WBL2024] and bilevel optimization [@NXSHC2023].
+
+### Multi-task learning {#sec-multitask-learning}
+Broadly speaking, *multitask learning* aims to learn multiple related tasks simultaneously and collaboratively [@C1997; @ZY2022].[^d-mtl-mal]
+In this sense, the multitask learning generally poses constraints to edges, distinguishing it from the consensual distributed learning which only has constraints on nodes.
+Since it is an abstract concept, it does not have a typical mathematical formulation.
+
+[^d-mtl-mal]: It is important to avoid confusing this with *multi-agent learning*, which also needs to learn multiple tasks at the same time, but these tasks can be adversarial.
+
+### Communication-efficient distributed learning {#sec-communication-efficient-distributed-learning}
+In practice, the cost of communication between entities within the communication network is remarkably higher than that of the local computation.
+Therefore, even if an algorithm enjoys a fast theoretical convergence, it may still suffer from slow practical convergence due to the slow communication.
+Motivated by this, the *communication-efficient* algorithms, i.e., those algorithms that require less communication cost to achieve comparable or even better performance, become a new research hot spot.
+
+Typical methodologies for communication-efficient algorithms can be divided into four types [@CBDELPZ2023].
+
+1. The first type of methods is to **reduce the number of communication rounds per iteration** by only executing communication between nodes when necessary.
+These algorithms strive to strike a balance between local computation and inter-node communication.
+Each node will update multiple times in each iteration, with the number being either a fixed number or adaptively adjusted based on certain events, to obtain a more accurate local estimation. 
+Afterwards, the node exchanges information with its neighbors to contribute to the global model.
+It is important to avoid over-fitting the local estimation by limiting the number of local updates in each iteration, which could result in a biased global model.
+Examples include [@JSTTKHJ2014; @SFMTJJ2018; @LLZ2020; @CB2021] and so on.
+
+2. The second type of methods is to **compress communications**, i.e., compress the information exchanged via communication to reduce the cost.
+Commonly used ways to compress information are quantization [@OSDD2021; @CB2020; @EPBIBA2021; @XWCT2024] and sparsification [@LZSL2023].
+Recently, [@LLHP2022] combines communication compression and GT to develop a compressed gradient tracking method.
+
+3. The third type of methods is to take the **resource constraint** into consideration and communicate accordingly.
+Communication will only be performed when the resource allows to do so.
+
+4. The final type of methods is to use **game theory** in determination of which neighbors are selected to communicate with.
+To this extent, the neighbors are generally randomly selected according to some distribution.
+Representative examples include the algorithms in [@GCYR2022; @CSPEC2021], the celebrated *gossip-type algorithms* [@BGPS2006; @CSY2006; @DKMRS2010] and its variants [@MYHGSY2020], and so forth.
+There are algorithms that attempt to directly modify the communication network to avoid unnecessary communications.
+For example, [@LS2019; @ZLZ2022] consider constructing a minimal spanning tree of the communication network to reduce the number of communication rounds; [@EPBIBA2021; @EPBBA2020] construct a subset of edges of the communication network that is a chain connecting all nodes and only perform communication on this chain.
+However, these can be categorized into this type of approach since it is equivalent to setting the probability of certain edges participating in communication to zero.
+
+### Combination {#sec-combination-learning}
+While the online consensual distributed optimization has been widely studied, see [@LXL2023] for a survey, the communication-efficient online consensual distributed optimization is relatively limited [@CBDELPZ2023], not to mention the communication-efficient online multitask distributed optimization.
+The bottleneck of the development of communication-efficient online multitask distributed optimization mainly comes from the fact that multitask learning generally requests more global information, which can only be acquired via communications.
+Moreover, the nature of multitask learning prevents us from using many tools in [@sec-preliminaries] and [@sec-consensual-distributed-opt], especially the GT and VR techniques.
+
+Here we further mention an interesting topic in online distributed optimization, the *Byzantine generals problem* [@LSP1982], or equivalently *Byzantine attacks*, *Byzantine fault*, *Byzantine failure*, *interactive consistency*, and so many other names.
+Simply speaking, this problem assumes that there are some *traitors* in the communication network, who will selectively provide wrong information when communicating with their neighbors to prevent the network from achieving consensus.
+This problem is difficult since it involves adversarial environment in online optimization, multitask learning, and data heterogeneity.
+There are some work in this topic; see, for example, [@LXCGL2019; @HZL2023; @DWLT2024].
+
+## Problem formulation and challenges {#sec-prob-form-challenges}
+In this section, we provide a brief introduction of the problem we are considering: how to design communication-efficient algorithm for online distributed multitask learning.
+Since the mathematical formula of multitask learning varies from application to application, here we only provide two widely used formulae that can cover many applications including consensual distributed optimization, network lasso, subgroup analysis, etc.
+
+The first formula is an unconstrained optimization problem admitting the following form
+$$
+\min_{\mathbf{x}} \sum_{k=1}^K f_k(x_k) + \sum_{(j, k) \in \mathcal{E}} g_{jk}(x_j, y_k),
+$$ {#eq-uncon-prob}
+where $\mathbf{x} := (x_k^{\top})_{i=1}^K$; $f_k$ is the local cost function at the $i$-th node; $g_{jk}$ is the cost function for the edge $(j, k)$.
+Alternatively, one may consider a constrained optimization problem as
+$$
+\begin{aligned}
+   \min_{\mathbf{x}} & \quad \sum_{k=1}^K f_k(x_k) \\
+   \text{s.t. } & \quad h_{jk}(x_j, x_k) \leq \gamma_{jk} \quad \forall \, (j, k) \in \mathcal{E},
+\end{aligned}
+$$ {#eq-con-prob}
+where $h_{jk}$ is the cost function for the edge $(j, k)$.
+
+Next we give some examples.
+
+- If we let $h_{jk}$ be some norm and let $\gamma_{jk} = 0$, then problem ([-@eq-con-prob]) reduces to the consensual distributed optimization.
+
+- If we let $g_{jk}(x_j, x_k) = \|x_j - x_k\|_2$, then ([-@eq-uncon-prob]) reduces to network lasso in [@HLB2015].
+
+- If we let $f_k(x_k) = \frac{1}{2}\| A_k x_k - b_k \|_2^2$ with some local data $(A_k, b_k)$ and let $g_{jk}(x_j, x_k) = \|x_j - x_k\|_1$, then ([-@eq-uncon-prob]) reduces to the subgroup analysis problem in [@LS2019; @ZLZ2022].
+
+The main challenge comes from the two functions $g_{jk}$ and $h_{jk}$ which lead the problem to be not consensual.
+Hence many existing algorithms for consensual distributed optimization cannot apply.
+One possible way to solve ([-@eq-uncon-prob]) is to transfer it to a consensual distributed optimization problem by considering the whole variable $\mathbf{x}$ in each node, as in [@JMS2018].
+Although it allows us to use consensual distributed optimization techniques, it significantly increases the problem scale and does not make use of the problem structure.
+
+Looking at the problem structure as a regularized separable problem, it is natural to consider using the celebrated ADMM.
+Some efforts were made in [@HLB2015; @CL2017; @CL2018; @LS2019; @ZLZ2022].
+However, the ADMMs in these papers still require full communication in each iteration except for two minimal spanning tree (MST)-based methods in [@LS2019; @ZLZ2022], while these two papers implicitly assume that data in each node are homogeneous and adequate to give a good initial point and hence fail to handle the heterogeneity and online settings.
+
+Some other attempts are seen in literature.
+For example, [@CL2020] uses a distributed Newton's method to solve ([-@eq-uncon-prob]).
+However, this Newton's method requires $f_k$ and $g_{jk}$ for all $i$ and $(j, k) \in \mathcal{E}$ to be twice differentiable, which is impractical.
+Saddle point methods are employed in [@KSR2017; @CB2020; @SCDB2024; @YC2024] to solve ([-@eq-con-prob]), where the smoothness of $f_k$ and $g_{jk}$ for all $i$ and $(j, k) \in \mathcal{E}$ is required.
+However, both network lasso and subgroup analysis problem do not fit these conditions.
+
+To conclude, so far the research focuses on these two problems is restricted.
+
+## Reference {.unnumbered}

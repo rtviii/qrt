@@ -1,0 +1,32 @@
+::: {.hidden}
+$$
+\def\argmin{\operatorname*{argmin}}
+\def\Ball{\mathbf{B}}
+\def\bmat#1{\begin{bmatrix}#1\end{bmatrix}}
+\def\Diag{\mathbf{Diag}}
+\def\dist{\mathbf{dist}}
+\def\env{\mathbf{env}}
+\def\half{\tfrac12}
+\def\infc{\Box}
+\def\ip#1{\langle #1 \rangle}
+\def\maxim{\mathop{\hbox{\rm maximize}}}
+\def\maximize#1{\displaystyle\maxim_{#1}}
+\def\minim{\mathop{\hbox{\rm minimize}}}
+\def\minimize#1{\displaystyle\minim_{#1}}
+\def\norm#1{\|#1\|}
+\def\Null{{\mathbf{null}}}
+\def\proj{\mathbf{proj}}
+\def\R{\mathbb R}
+\def\Re{\mathbb R}
+\def\Rn{\R^n}
+\def\rank{\mathbf{rank}}
+\def\range{{\mathbf{range}}}
+\def\span{{\mathbf{span}}}
+\def\st{\hbox{\rm subject to}}
+\def\T{^\intercal}
+\def\textt#1{\quad\text{#1}\quad}
+\def\trace{\mathbf{trace}}
+\def\Xscr{\mathcal{X}}
+\def\Yscr{\mathcal{Y}}
+$$
+:::

@@ -1,0 +1,26 @@
+# options specified here will apply to all posts in this folder
+
+affiliation:
+  - name: "University of British Columbia"
+    url: "https://www.ubc.ca"
+
+# freeze computational output
+# (see https://quarto.org/docs/projects/code-execution.html#freeze)
+execute: 
+  freeze: true
+
+# Enable banner style title blocks
+# title-block-banner: true
+
+bibliography: ../references.bib
+
+comments: 
+  hypothesis: true
+  giscus: 
+    repo: mpf-optimization-laboratory/opt-blog
+    repo-id: "R_kgDOLVtbaQ"
+    category: "General"
+    category-id: "DIC_kwDOLVtbac4CdcUG"
+    mapping: "pathname"
+    reactions-enabled: true
+    

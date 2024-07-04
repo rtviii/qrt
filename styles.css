@@ -1,0 +1,9 @@
+/* css styles */
+.theorem {
+    background-color: rgb(240, 248, 255);
+    border: 1px solid rgb(0, 120, 215);
+    border-radius: 4px;
+    padding: 10px;
+    padding-bottom: 0px;
+    margin-bottom: 10px;
+  }

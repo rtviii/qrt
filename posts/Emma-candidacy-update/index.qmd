@@ -1,0 +1,653 @@
+---
+title: "Dual Problem Approaches for Quantum Key Rate Calculations"
+subtitle: "Candidacy Update Report"
+date: "29 February 2024"
+author:
+  - name: "Emma Hansen"
+    affiliation: "University of British Columbia Department of Mathematics"
+bibliography: references.bib
+callout-icon: false
+execute:
+  freeze: true
+  cache: true
+fig-cap-location: margin
+categories: [dual methods, quantum key distribution, Newtons method, optimization]
+abstract: |
+    This report is a progress update on my candidacy project.
+number-sections: true
+draft: true
+---
+
+# Quantum Key Distribution
+
+::: {.hidden}
+$$
+\newcommand{\H}{\mathcal{H}}
+\newcommand{\tr}{\textnormal{tr}\,}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\Ac}{\mathcal{A}^*}
+\newcommand{\N}{\mathcal{N}}
+\renewcommand{\P}{\mathcal{P}}
+\newcommand{\Z}{\mathcal{Z}}
+\newcommand{\G}{\mathcal{G}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\st}{\hspace{0.7mm}\textnormal{s.t.}\hspace{0.7mm}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\<}{\langle}
+\renewcommand{\>}{\rangle}
+\newcommand{\diag}{\textnormal{\textbf{diag}}}
+\newcommand{\eigs}{\textnormal{\textbf{eigs}}}
+\newcommand{\Diag}{\textnormal{\textbf{Diag}}}
+\newcommand{\T}{^\textsf{T}}
+\newcommand{\B}{\mathcal{B}}
+\newcommand{\Bc}{\mathcal{B}^*}
+\newcommand{\one}{\mathbf{1}}
+\renewcommand{\phi}{\varphi}
+$$
+:::
+
+To begin talking about quantum key rates, we must first talk about quantum cryptography and quantum encryption schemes. By now, most people have probably heard at some point "quantum computers are going to be able to hack secure information in a fraction of the time of classical computers\", or "RSA encryption will be useless against quantum computers\", or something of the like. And, although it will be a while before quantum computers are powerful enough to pose a real threat to current encryption schemes, it's important to get ahead of the development and have quantum-safe encryption schemes ready to implement. Quantum key distribution (QKD) is just one of the many disciplines that provide a solution to the threat quantum computers pose to classical encryption [@Broadbent_Schaffner_2016].
+
+As in classical encryption, quantum encryption schemes use an encryption *key* to distort information so that eavesdropper can't infer anything useful, and then use another key held by a trusted correspondent to decrypt the information. The discipline of quantum key distribution encompasses the creation of key distribution protocols, and the calculation of key rates for these protocols. QKD protocols are the processes used to create and distribute the keys between sender and receiver. To fully define a QKD protocol, you need to define the state of the qubits that Alice can prepare, methods Alice and Bob will use to measure the qubits, a potential third party Charlie to convey information to Alice and Bob, and the method through which Alice and Bob exchange information about their measurements [@Winick_Lütkenhaus_Coles_2018]. To analyse a protocol, you need to define a model for environment noise, and an attack method for Eve to use - these determine the quantum channel.
+
+To build a concrete understanding of what a QKD protocol encompasses, we will go through a simple protocol as an example, the BB84 protocol (named after its inventors Charles Bennett and Gilles Brassard [@Bennett_Brassard_2014]). This description for this example is restated from Nielsen and Chuang *Quantum Computation and Quantum Information* [@Nielsen_Chuang_2012].
+
+::: {#nte-bb84 .callout-note}
+## BB84
+Alice starts with two strings, $a$ and $b$, of $(4+\delta)n$ random classical bits (this is a very specific number, the reasoning behind it coming from the security proof). She then encodes the classical bits from string $a$ in qubits by choosing one of two spin bases (spin up/down - $X$, and spin diagonal - $Z$) determined by string $b$. This means each qubit is one of the following states 
+
+$$\begin{aligned}
+    &\ket{\phi_{00}} = \ket{0} = \left[\begin{array}{c}
+         1 \\
+         0 
+    \end{array}\right], \
+    \ket{\phi_{01}} = \ket{1} = \left[\begin{array}{c}
+         0 \\
+         1 
+    \end{array}\right], \\ 
+    &\ket{\phi_{10}} = \ket{+} = \frac{1}{\sqrt{2}}(\ket{0} + \ket{1}), \
+    \ket{\phi_{11}} = \ket{-} = \frac{1}{\sqrt{2}}(\ket{0} - \ket{1}).
+\end{aligned}$$ 
+
+The labelling of the individual states indicates the value from string $a$ first, and the basis chosen as from string $b$ second, $\ket{\phi_{a_k b_k}}$. The complete state of Alice's system is given by the superposition of the states of the individual qubits, written as 
+
+$$\begin{aligned}
+    \ket{\phi} = \bigotimes_{k=1}^{(4+\delta)n} \ket{\phi_{a_k b_k}},
+\end{aligned}$$ 
+
+which is the notation for the tensor product of the individual state vectors.
+
+Alice now sends $\ket{\phi}\bra{\phi}$ to Bob, which is the density matrix form of the state. Bob receives it in the form $\mathcal{E}(\ket{\phi}\bra{\phi})$, where $\mathcal{E}$ is the linear map describing the changes due to noise and interference by Eve. Bob then announces publicly that he has received the state, and measures in a randomly selected string of bases (either the $X$ or $Z$ basis) determined by his string $b'$, and stores the values in a string $a'$. In between all of this Eve has measured and re-sent qubits in her own randomly selected string of bases, if she guessed the wrong basis then the state will have been disturbed.
+
+Alice now announces publicly what her basis string $b$ contained, and Alice and Bob both discard the elements of their strings $a$ and $a'$ for which Bob chose the wrong measurement basis (this is a type of *sifting* procedure). Assuming this leaves $2n$ bits remaining, Alice will now select $n$ of her remaining bits and announce the indices to Bob so they can publicly compare values and check for noise and interference. If more than $t$ bits differ, then they abort and re-try. The value $t$ is chosen so that they can then apply information reconciliation and privacy amplification to the remaining bits.
+:::
+
+The BB84 protocol is a type of "prepare and measure\" protocol, another popular type of protocol is entanglement-based, where Charlie prepares an bipartite entangled state and sends one part to Alice and one to Bob. For this report we will focus on prepare and measure protocols.
+
+We now move on to the second part of QKD: the computation of key rates for distribution protocols. The key rate is what quantifies how much usable secret key is distributed by a given protocol, it is the number of established secret key bits divided by the number of distributed quantum systems (number of qubits) [@Coles_Metodiev_Lütkenhaus_2016]. Protocols with higher key rates are more desirable, so the ability to calculate a key rate for a distribution protocol is an important step in the development of new distribution protocols. Unfortunately (for quantum cryptographers, fortunately for me!) calculating the key rate is a pretty difficult problem. @Devetak_Winter_2005 developed a formula for the key rate given known states of Alice, Bob, and Eve, but computing the key rate with those parameters specified only gives part of the picture. In order to be sure the protocol will work under all circumstances (all possible joint states of Alice, Bob, and Eve), a worst case key rate is computed. This is an optimisation problem whose solution lower bounds all possible key rates for a given protocol.
+
+
+The rest of this section contains descriptions of some of the quantum information theory concepts discussed, which will hopefully provide some foundation for your thoughts. It concludes with some notation.  
+
+
+
+
+::: {.callout-tip collapse=true}
+## A crash course in quantum states
+The state of a qubit is represented by a length two vector written in bra-ket form, $\ket{v}$ - a "ket". For a general qubit, this is a superposition (linear combination) of the computational basis vectors 
+
+$$\ket{0} = \left[ \begin{array}{c}
+1\\ 
+0 \end{array} \right], \ \ \ket{1} = \left[ \begin{array}{c}
+0\\ 
+1 \end{array} \right].$$
+
+A single qubit state could look like $\ket{v} = \frac{1}{\sqrt{2}} \ket{0} + \frac{1}{\sqrt{2}} \ket{1}$. The coefficients of the states must satisfy $||\ket{v}|| = 1$, the squares of the coefficients are the probability that $\ket{v}$ is in the associated state. 
+
+The state of a collection of qubits is called a quantum system or *register*, and is represented by the tensor product of the states of all the qubits in the system. For a system of $m$ qubits, this is $\ket{\phi} = \bigotimes_{i=1}^m \ket{a_i}$. If we take $m=2$, the computational basis is now
+
+$$\ket{00} = \left[ \begin{array}{c}
+1\\ 0 \\0\\0\end{array} \right], 
+\ \ \ket{01} = \left[ \begin{array}{c}
+0\\ 1 \\0\\0\end{array} \right], 
+\ \ \ket{10} = \left[ \begin{array}{c}
+0\\0 \\1\\0\end{array} \right], 
+\ \ \ket{11} = \left[ \begin{array}{c}
+0\\0\\0\\1\end{array} \right],$$
+
+representing the possible combinations of the states of each qubit. 
+
+The state of a quantum system is frequently represented by a density matrix, this is an $m\times m$ Hermitian matrix. To relate this to the representation of a state as a vector, we need to build a distinction between pure quantum states and mixed quantum states. 
+
+A pure state is one whose density matrix can be written as an outer product of a single ket
+
+$$\rho = \ket{\phi}\bra{\phi}.$$
+
+Density matrices of pure states are rank 1. A mixed state is one whose density matrix cannot be written as a single outer product
+
+$$\rho = \sum_{i=1}^n a_i \ket{\phi_i}\bra{\phi_i}. $$
+
+The coefficients $a_i$ denote the probability with which the system is in state $\ket{\phi_i}$, and since the $\ket{\phi_i}$ are unit vectors the $a_i$ are the eigenvalues of $\rho$. For example, $\rho =  \ket{00}\bra{00}$ is a pure state, and $\sigma = \frac{1}{\sqrt{2}} \ket{00}\bra{00} + \frac{1}{\sqrt{2}} \ket{01}\bra{01}$ is a mixed state.  
+
+Focussing now on pure states, let's say we have two registers, A and B, and denote states from these registers as $\ket{\phi}_A$ and $\ket{\phi}_B$ respectively. The joint state of A and B, call this AB, can be either separable or entangled. If the joint state is separable, it can be factored as 
+
+$$\ket{\phi}_{AB} = \left(\sum_{i=1}^k \alpha_i\ket{\phi_i}_A + \beta_i\ket{\phi_i})_B \right)\otimes\left(\sum_{i=1}^k \alpha_i\ket{\phi_i}_A + \beta_i\ket{\phi_i})_B \right).$$
+
+Note that a common shorthand for the tensor product of kets is $\ket{a}\otimes\ket{b} = \ket{a}\ket{b} = \ket{ab}$. If the joint state is entangled, then it can't be factored like that. For example, $\ket{\phi}_{AB} = \frac{1}{\sqrt{2}} (\ket{0_A 0_B} + \ket{1_A 1_B})$ is an entangled state and $\ket{\psi}_{AB} = \frac{1}{2}(\ket{0_A 0_B} + \ket{0_A 1_B} + \ket{1_A 0_B} + \ket{1_A 1_B})$ is a separable state because it can be factored: $\ket{\psi}_{AB} = \frac{1}{2}(\ket{0}_A + \ket{1}_A)(\ket{0}_B + \ket{1}_B)$.
+
+Information in this note was collected from Joe Salfi's Introduction to Quantum Information and Computing course and Wikipedia (@Salfi-course_2023,@Qubit_2024,@Quantum-entanglement_2024).
+
+
+:::
+
+::: {.callout-tip collapse=true} 
+## Measuring quantum systems
+
+Measurement of quantum systems is characterized by projection operators. A projection operator is correlated with a measurement outcome, and the result of the measurement is the probability of obtaining said measurement outcome. Let's say we have a projection operator $P = \ket{00}\bra{00}$ corresponding to measurement outcome that both qubits are 0, then if we apply this to a state $\rho = \frac{1}{4} \ket{00}\bra{00} + \frac{3}{4} \ket{10}\bra{10}$, the result is $\frac{1}{4}$. Measurements can also be generalised to something called a positive operator-valued measure (POVM). A POVM is defined as a collection of positive semi-definite matrices $\{P_i\}$ that sum to the identity
+
+$$\sum_{i=1}^k P_i = I.$$
+
+Each POVM element $P_i$ corresponds to a measurement outcome indexed by $i$, and the result of the measurement gives the probability of obtaining outcome $i$
+
+$$\text{Prob}(i) = \tr(\rho P_i).$$
+
+Projection measurements can be used to determine the density matrix of an unknown quantum system $\sigma$. You can define the set of measurement operators to correspond to all possible states $\{\ket{\phi_i}\}_{i=1}^n$ the system could exist in, then the outcome of the measurement is the probability $p_i$ that the system is in state $\ket{\phi_i}$. Let $\sigma'$ denote the reconstructed system, it is defined as
+
+$\sigma' = \sum_{i=1}^n p_i \ket{\phi_i}\bra{\phi_i}.$$
+
+
+To provide the brain with something to hold onto while talking about "measuring" qubits, we describe, at a very high level, one method of doing so: spin selective tunnelling. 
+
+While it is possible to measure the spin of a quantum particle, it is time consuming - but most encryption protocols use spin qubits, meaning fast and reliable measurement is necessary. Spin selective tunnelling is a method to determine particle spin by measuring a charge (which is much faster to do). Suppose you have a qubit of known spin in a two state reservoir (remembering from chemistry that particles like electrons can have different activation states), next to this reservoir you have a different one state reservoir with a qubit of unknown spin. Quantum chemistry dictates that it is much harder for a particle with the same direction spin to tunnel to the left, but particles with opposite spin can tunnel much easier. When a particle tunnels and changes state, a small charge is emitted, and this is what is measured. Whether or not a charge is detected will determine if the measurement is taken to be a 0 or a 1 (based on the spin of the known qubit).
+
+::: wrapfigure
+![](spinselect.jpg){width=30% .lightbox fig-align="center"}
+:::
+Information in this note was collected from Joe Salfi's Introduction to Quantum Information and Computing course and Wikipedia (@Salfi-course_2023,@Measurement-in-quantum-mechanics_2024).
+
+:::
+
+
+## Notation
+
+- $\H^n$ is the set of $n\times n$ Hermitian matrices
+
+- Let $X\in\H^n$ such that $X = V\Lambda V^*$, and $f:\mathbb{R}\rightarrow\mathbb{R}$ continuous, then we can define a spectral function $F:\H^n\rightarrow \H^n$ such that $F(X) = \sum_{i=1}^n f(\lambda_i) v_i v_i^*$.
+
+- $S(X) = \tr(X\log X)$ is the negative quantum entropy
+
+- $S(X|Y) = S(\rho^{AB})-S(\rho^B)$ is the quantum conditional entropy
+
+- $S(X||Y) = \tr(X\log X - X\log Y)$ is the quantum relative entropy
+
+- $s(x) = \sum_{i=1}^m x_i \log x_i$ is the negative classical entropy
+
+- $s(x||y) = \sum_{i=1}^m x_i\log x_i - x_i \log y_i$ is the classical relative entropy, also called the KL divergence
+
+
+
+
+
+# Formulating the key rate calculation
+This section will go through how calculating the key rate can be written as a minimisation of relative entropy, which is the formulation presented by @Winick_Lütkenhaus_Coles_2018.
+
+The expression for the key rate that Winick et al. use comes from Theorem 2.6 of @Devetak_Winter_2005, with the assumption that Eve possesses a purification of the joint state of Alice and Bob (this is a worst case scenario, where Eve has the most amount of information about Alice and Bob's systems). With this assumption about Eve's state, the key rate can be written as
+
+$$ K = p_{\text{pass}} \cdot \left( S(Z^R|E\tilde{A}\tilde{B})_\rho - \text{leak} \right),$$
+
+where $p_\text{pass}$ is the probability of passing the sifting step in the protocol, $Z^R$ is a register storing information about the key, $E\tilde{A}\tilde{B}$ is the joint state of Eve, the purified state of Alice, and the purified state of Bob, $\rho$ is the density matrix representing the joint state of $Z^R$ and $E\tilde{A}\tilde{B}$, and $\text{leak}$ is the number of bits of key map information that Eve learns through error correction. The specifics of purifications and the error correction process aren't included as they are beyond the scope of this project, which is concerned with the optimisation problem itself. 
+
+Since only the conditional entropy term is dependent on $\rho$, when we minimise over all $\rho$ to determine the worst case key rate, the $\text{leak}$ term does not need to be included in the objective. Winick et al. first use a result from @Coles_2012 to transform the conditional entropy to a relative entropy in the form 
+
+$$p_{\text{pass}} S(V\rho^{(3)}V^*||\Z(V\rho^{(3)}V^*)),$$
+
+where $\rho^{(3)}$ is result of the key distribution protocol acting on the joint state of Alice and Bob, which is explained in more detail below. The map $\Z$ is a pinching, pinchings have the property that $||\Z(\rho)|| \leq ||\rho||$ for every unitarily invariant norm [@Bhatia_1997].
+
+$V$ is an isometry which, when applied to $\rho^{(3)}$ stores the key information in a different register system $R$, and $\rho^{(3)}$ is 
+
+$$\rho^{(3)} = \frac{\Pi \rho^{(2)} \Pi}{p_{\text{pass}}}.$$
+
+Here, $\Pi$ is the projector defined to project to the subspace of announcements that Alice and Bob keep after sifting, $\rho^{(2)}$ is 
+
+$$\rho^{(2)} = \A(\rho_{AB}),$$
+
+where $\A$ is a completely positive trace-preserving map representing the changes that happen to Alice and Bob's joint state after passing through the quantum channel associated with Alice and Bob's respective measurements and announcements of said measurements.
+
+::: {#tip-channels .callout-tip collapse="true"}
+## Quantum Channels
+
+A quantum channel can be thought of as a passage through which quantum particles pass to get from Alice to Bob, and in this passage effects from the environment and Eve affect the particles (these are modelled by Kraus operators). But, a quantum channel can also describe what happens to a quantum particle in a quantum computer, or what happens to quantum particles when any sort of operation is applied. *Quantum channel* is the terminology used to describe when a quantum particle undergoes a change or series of changes, and those changes are modelled by Kraus operators. 
+
+One type of quantum channel, which will be used in @sec-bb84ex, is the depolarising channel. To talk about the depolarising channel, we need to introduce the Pauli gates/matrices. There are three Pauli matrices
+
+$$X = \left[\begin{array}{cc} 0 & 1 \\ 1 & 0 \end{array} \right], \ Y = \left[\begin{array}{cc} 0 & -i \\ i & 0 \end{array} \right], \ Z = \left[\begin{array}{cc} 1 & 0 \\ 0 & -1 \end{array} \right].$$
+
+Pauli $X$ is often called "bit flip", because when acting on a qubit state it will flip the position of the $0$ and $1$, causing the state to go from $\ket{0}$ to $\ket{1}$. Pauli $Z$ is often called "phase flip", because it only changes $\ket{1}$ to $-\ket{1}$, and doesn't change $\ket{0}$. The Pauli $Y$ doesn't have another name. 
+
+Depolarising channels are used to model noise in quantum systems. They act linearly on the system state as
+
+$$\mathcal{E}(\rho) = (1 - \frac{3}{4}p) \rho + \frac{p}{4}X \rho X^* + \frac{p}{4} Y \rho Y^* + \frac{p}{4} Z \rho Z^*, $$
+
+where $p$ the probability that noise affects a change on the state  [@Salfi-course_2023;@Nielsen_Chuang_2012].
+
+:::
+
+The definitions of the operators $\Z$, $V$, $\Pi$, and $\A$ are
+
+- $\Z(\sigma) = \sum_j (\ket{j}\bra{j}_R \otimes \mathbf{1}) \sigma (\ket{j}\bra{j}_R \otimes \mathbf{1})$. The $\ket{j}_R$ denote standard basis elements in the register $R$.
+
+- $V = \sum_{(a,\alpha_a,b)} \ket{g(a,\alpha_a,b)}_R \otimes \ket{a}\bra{a}_{\tilde{A}} \otimes \ket{\alpha_a}\bra{\alpha_a}_{\bar{A}} \otimes \ket{b}\bra{b}_{\tilde{B}}$. Here $g(a,\alpha_a,b)$ is a "key map\", $(a,\alpha_a)$ are the outcome of Alice's measurements, $b$ is Bob's announcement, and the output of $g$ is a value in $\{0,1,...,N-1\}$, where $N$ is the number of key symbols. $\tilde{A}$ and $\tilde{B}$ are the registers that store Alice and Bob's public announcements, $a$ and $b$, respectively. $\bar{A}$ and $\bar{B}$ are registers that store Alice and Bob's measurement outcomes for a given announcement, $\alpha_a$ and $\beta_b$, respectively. When applied as a similarity transform on a state $\rho$, it stores the key information of $\rho$ in the standard basis of $R$.
+
+- $\Pi = \sum_{(a,b)\in A} \ket{a}\bra{a}_{\tilde{A}} \otimes \ket{b}\bra{b}_{\tilde{B}}$. $A$ is the set/register of announcements that are kept.
+
+- $\A(\rho) = \sum_{a,b} (K_a^A\otimes K_b^B)\rho (K_a^A\otimes K_b^B)^*$. $K_a^A$ and $K_b^B$ are Kraus operators, which are composed of operators representing different actions of a quantum channel on a quantum state. 
+    - $K_a^A = \sum_{\alpha_a} \sqrt{P^A_{(a,\alpha_a)}} \otimes \ket{a}_{\tilde{A}} \otimes \ket{\alpha_a}_{\bar{A}}$ 
+    - $K_b^B = \sum_{\alpha_b} \sqrt{P^B_{(b,\beta_b)}} \otimes \ket{b}_{\tilde{B}} \otimes \ket{\alpha_b}_{\bar{B}}$
+    - The Kraus operators are built from POVMs, $P^A_{(a,\alpha_a)}$ and $P^B_{(b,\beta_b)}$, in this case the POVMs represent the possible measurement outcomes for Alice and Bob. 
+
+Winick et al. then define an operator $\G$ that encompasses the changes to the state from $V$, $\Pi$, and $\A$
+
+$$\G(\rho) =  V \Pi \A(\rho) \Pi V^*,$$
+
+and use this to write the key rate calculation as 
+
+$$\begin{aligned}
+\begin{split}
+    \min_\rho & \ S(\G(\rho)||\Z(\G(\rho))) \\
+    \st & \ \Gamma(\rho) = \gamma, \\
+    & \ \rho \succeq 0,
+\end{split} 
+\end{aligned}$$ {#eq-winickformulation}
+
+where $\rho$ is used as a shorthand to denote $\rho_{AB}$, the joint system of Alice and Bob, and $\Gamma(\rho) = \{\tr(\Gamma_i \rho)\}_{i=1}^m$. Both the $\Gamma_i$ and $\gamma$ are determined from experimental data and help characterise the the density matrix $\rho$, which is unknown. 
+
+
+This general form of the key rate calculation can be studied without needing the explicit definitions of $\Z$ and $\G$, just by knowing that they are both linear, and $\G$ is a completely positive map and $\Z$ is a completely positive trace-preserving map. As the matrix logarithm is evaluated on the eigenvalues of the matrix, both $\Z$ and $\G$ must map to full rank matrices. Additionally, we know this is a convex optimisation problem, since it is known that relative entropy is jointly convex [@Effros_2009;@Ebadian_Nikoufar_EshaghiGordji_2011].
+
+
+
+
+## A solution approach by Winick et al.
+
+Determining the key rate is an important step in analysing new key distribution protocols, and it is important that the key rate determined in the analysis is actually achievable. For that reason, Winick et al. chose to solve the problem via a dual method on the linearisation of the problem. By using a dual method, algorithmically the minimum (of the primal problem) is approached from below, assuring that the key rate is achievable. 
+
+Their approach is broken down into two steps: (1) find a close-to-optimal eavesdropping attack, which results in an upper bound on the key rate, (2) convert the upper bound into a lower bound. 
+
+**Step 1.** The first component of Step 1 is to write $\rho$ in a subspace representation, to include the constraints $\Gamma$ inherently in the variable. They apply the Gram-Schmidt process to the $\Gamma_i$ and create $\tilde{\Gamma}_i$, which is then extended to an orthonormal basis for $\H^n$ with matrices $\Omega_j$, $j=1,...,n-m$. The $\gamma_i$ are the expectation value of the $\Gamma_i$, so the expectation value for the orthonormalised $\tilde{\Gamma}_i$ will be $\tilde{\gamma}_i$. Now we can write the domain of the problem as 
+
+$$ E = \{ \sum_{i=1}^m \tilde{\gamma}_i \tilde{\Gamma}_i + \sum_{j=1}^{n-m} \omega_j \Omega_j \mid \omega\in\mathbb{R}^{n-m}\},$$
+
+where the $\tilde{\Gamma}_i$ span the subspace defined by the constraints, and the $\Omega_j$ span the free subspace. Now, variable is reduced to a vector in $\mathbb{R}^{n-m}$. With this framework, they adapt the Frank-Wolfe algorithm to minimise the unconstrained version of @eq-winickformulation. The minimising argument is a density matrix which represents a system state after a possibly worst case eavesdropping attack. The algorithm Winick et al. use is
+
+::: wrapfigure
+![Note: the algorithm is a screenshot from the Winick paper, I wasn't able to find a pseudocode format I was satisfied with before the submission deadline.](winickalg1.PNG){width=60% .lightbox}
+:::
+
+The notation is a little different, the differences are: their set $S$ is my set $E$, $f(\rho) = S(\G(\rho)||\Z(\G(\rho)))$. Line 2 is simply the semidefinite program
+
+$$\begin{aligned}
+\argmin_\omega & \sum_{j=1}^{n-m} \omega_j \tr(\Omega_j\T \nabla f(\rho_i)) \\
+\st & \sum_{j=1}^{n-m} \omega_j \Omega_j + \rho_i \in \H^n,
+\end{aligned}$$
+
+since the only free variable is $\omega$, which is then used to construct $\Delta \rho = \sum_{j=1}^{n-m} \omega_j \Omega_j$.
+
+
+**Step 2.** Let $\hat{\rho}$ be the minimising argument from Step 1, Step 2 starts with linearising $S(\G(\rho)||\Z(\G(\rho)))$ about $\hat{\rho}$. Due to numerical imprecision, $\hat{\rho}$ actually corresponds to a slight upper bound on the minimum, but we want the calculated key rate to actually be achievable. So, @Winick_Lütkenhaus_Coles_2018 determine the dual problem to the linearisation, and maximise that, thus resulting in a solution which is a lower bound to the primal problem. 
+
+An open-source solver based on this method is available under the name [Open QKD Security](https://openqkdsecurity.wordpress.com/).
+
+
+
+
+## Example: BB84 protocol {#sec-bb84ex}
+This section will go through the first example in Appendix F of @Winick_Lütkenhaus_Coles_2018. The example follows the BB84 protocol described in @nte-bb84, where Bob's qubit detectors are not perfectly efficient. The experimentally determined constraints $\Gamma$ will be modelled by a depolarizing channel (see @tip-channels for an explanation of a depolarising channel).
+
+As described above, we know that Alice and Bob's measurements of the qubits affect the state though the action of POVMs. Alice's POVMs model whether or not Alice will measure a qubit in the $z$-basis, and are written as 
+
+$$\begin{aligned}
+& P_1^A = p_z \ket{0}\bra{0}, \ P_2^A = p_z \ket{1}\bra{1}, \ P_3^A = (1-p_z) \ket{+}\bra{+}, \\ 
+& P_4^A = (1-p_z) \ket{-}\bra{-},
+\end{aligned}$$
+
+where $p_z$ is the probability that Alice measures in the $z$-basis, and $\ket{\pm} = \frac{1}{\sqrt{2}} (\ket{0} \pm \ket{1})$.
+
+::: { .callout-tip collapse="true"}
+## $z$-basis and the Bloch sphere
+
+The state of a qubit can be visualised as being on the unit sphere, called the Bloch sphere in quantum mechanics. 
+
+::: wrapfigure
+![](blochsphere.png){width=60% .lightbox fig-align="center"}
+:::
+
+In the Bloch sphere diagram above, from @ketterer-tel-01502539, the $x$-, $y$-, and $z$-axes are labelled with their corresponding bases. The poles of the Bloch sphere correspond to $\ket{0}$ and $\ket{1}$, which are called the $z$-basis. 
+
+:::
+
+Alice's system is modelled in qubits, but Bob's system will be modelled in qutrits (three bits), to account for the possibility that the qubit Alice sends just doesn't arrive, this is called a "no-click" event. Bob's POVMs are
+
+$$\begin{aligned}
+& P_1^B = p_z \ket{0}\bra{0} \oplus 0, \ P_2^B = p_z \eta \ket{1}\bra{1} \oplus 0, \ P_3^B = (1-p_z) \ket{+}\bra{+} \oplus 0, \\
+& P_4^B \ket{-}\bra{-} \oplus 0, \ P_5^B = \one - \sum_{j=1}^4 P_j^B, 
+\end{aligned}$$
+
+where the $\oplus 0$ indicates the addition of a third bit set to $0$, and the factor $\eta$ represents detector inefficiency. The fifth POVM is the one representing a no-click event, in this case the third bit is set to $1$. 
+
+The depolarising channel, which represents the environmental effects on the qubits, is modelled by the Kraus operators $\sqrt{1-\frac{3}{4}p} I$ (no change), $\sqrt{\frac{p}{4}} X$ (bit flip), $\sqrt{\frac{p}{4}} Y$ (bit flip with multiplication by $i$), and $\sqrt{\frac{p}{4}} Z$ (phase flip), $p$ is the depolarising probability. How the channel acts on a state is defined as 
+
+$$ \mathcal{E}(\rho) = (1-\frac{3}{4}p) \rho + \frac{p}{4}X \rho X^* + \frac{p}{4} Y \rho Y^* + \frac{p}{4} Z \rho Z^*.$$
+
+This depolarising channel is used to simulate the experimental data by applying it to a [maximally entangled state](https://en.wikipedia.org/wiki/Quantum_entanglement#Entangled_states) $\ket{\phi}$ to generate $\rho_\text{sim}$, which is then sampled by $\Gamma_{jk} = P_j^A\otimes P_k^B$ to generate the $\gamma_i$.
+
+$$\begin{aligned}
+& \rho_{\text{sim}} = (I \otimes \mathcal{E})(\ket{\phi}\bra{\phi}), \\
+& \gamma_{jk} = \tr((P_j^A\otimes P_k^B)\rho_{\text{sim}}),
+\end{aligned}$$
+
+where $I$ (by my understanding) is the identity acting on the no-click qubit of Bob's state (@Renner_2008), $\ket{\phi}$ is length $6$, since a state vector of Alice and Bob's joint state would be the tensor product of a state from Alice and a state from Bob, resulting in a length $6$ vector. 
+
+Calculating the Kraus operators is a straight forward application of the equation given before, so we move on to the definition of the projection operator that determines which measurements of Alice's and Bob's to keep. We want to make sure that only the measurements where Alice and Bob measure in the same basis are kept, that is, Alice measures $\ket{0}\bra{0}$ and Bob measures $\ket{0}\bra{0}$ OR Alice measures $\ket{1}\bra{1}$ and Bob measures $\ket{1}\bra{1}$. The projector is written as 
+
+$$\Pi = \ket{0}\bra{0}_A \otimes \ket{0}\bra{0}_B + \ket{1}\bra{1}_A\otimes \ket{1}\bra{1}_B. $$
+
+The last object to define is the isometry for the key map. It is defined such that Alice stores a 0 if she obtains outcome $P_1^A$ or $P3^A$, and stores a 1 if she obtains outcome $P_2^A$ or $P_4^A$, this is written as
+
+$$ V = \ket{0}_R\otimes \ket{0}\bra{0}_A + \ket{1}_R\otimes \ket{1}\bra{1}_A,$$
+
+where $R$ is the register of key values. 
+
+With this, all components are defined to create the maps $\G$, $\Z$, and $\Gamma$ for the optimisation problem in @eq-winickformulation.
+
+
+
+This is a nice example to show how an actual key distribution protocol can be used to generate the operators needed for key rate analysis, but it doesn't give an accurate representation of the size of a real-world key distribution protocol. With an actual implementation of a key distribution protocol, Alice would be sending Bob many qubits, enough so that even after sifting and error correction, bits remain. That would mean that if Alice sends $n$ qubits, her state would be length $2^n$ [@Scarani_Bechmann-Pasquinucci_Cerf_Dušek_Lütkenhaus_Peev_2009], and Bob's state would be length $3^n$, and the size of the density matrix for their joint system would be $(2^n 3^n)\times (2^n 3^n)$. Now considering the number of constraints. Let $m_A$ be the number of Alice's POVMs, and $m_B$ the number of Bob's POVMs. Then, the formulation used by @Winick_Lütkenhaus_Coles_2018 has the number of constraints equal to $m_A m_B n$. For the given BB84 example with $n$ qubits, this would give $20n$ constraints. The fact that the number of constraints is significantly smaller than the size of the variable motivates a dual problem approach. 
+
+
+
+
+
+# Work to date: minimising relative entropy
+
+What I have been working on to-date is guided by the goal of understanding what is *hard* about this problem, the problem of calculating key rates. I started with a simple problem of minimising the relative entropy in the first argument (P1), looking at the vector version and the matrix version. Then, minimising the relative entropy in the second argument (P2). And finally, minimising relative entropy in a similar form to that of the key rate problem (P3)
+
+$$\begin{aligned}
+\min_{X} \ & S(X||f(X))\\
+\st \ & \A(X) = \alpha,
+\end{aligned}$$
+
+where $f:\H^n\rightarrow\H^n$ and $\A:\H^n\rightarrow \mathbb{R}^m$ are linear maps. 
+
+When going through the exercise of solving the KKT conditions for P1, it came out that I was solving the dual problem, and using the dual solution to determine the primal solution. This realisation informed the approaches I took with P2 and P3, to look at the dual problem explicitly in addition to KKT conditions. 
+
+The following sections will cover the work I have done on P1, P2, and P3 respectively. 
+
+## P1: Minimisation over first input {#sec-P1}
+
+In the case of P1, the problem studied was minimising the Bregman divergence of entropy, not the relative entropy. Additionally, the form of entropy used in this section is $\hat{S} = \tr(X\log X- X)$, a form frequently used in entropy regularisaion.
+
+Let $X,Y\in\H^n$ and $F:\H^n\rightarrow\mathbb{R}$ convex and Legendre-type. The problem is 
+
+$$\begin{aligned}
+\begin{split}
+    \min_X \ & \D_F(X,Y) \\
+    \st & \A(X) = a,
+\end{split} 
+\end{aligned}$$ {#eq-entropyprojP}
+
+where $\A:\H^n\rightarrow\mathbb{R}^m$ is defined as $\A(X) = [\langle A_i, X\rangle]_{i=1}^m$, and $Y$ is constant. It is important to note that a similar problem, the difference being inequalities in the constraints, was studied by @Tsuda_Rätsch_Warmuth_2005. The KKT conditions for the above problem are
+
+$$\begin{aligned}
+    D_X \D_F(X,Y) + D_X\left( \sum_{i=1}^m \gamma_i(\langle A_i,X\rangle - a_i)\right) = 0, 
+\end{aligned}$$ {#eq-kktgeneralQ}
+
+$$\begin{aligned}
+    \A(X) = a
+\end{aligned}$$ {#eq-kktfeasibility}
+
+where $D_X$ denotes the derivative with respect to $X$, $\gamma\in\mathbb{R}^m$ with components $\gamma_i$. We expand @eq-kktgeneralQ to  
+
+$$\begin{aligned}
+    & D_X \D_F(X,Y) + D_X\left( \sum_{i=1}^m \gamma_i(\langle A_i,X\rangle - a_i)\right) = 0,  \\
+    \Rightarrow & DF(X) - DF(Y) + \sum_{i=1}^m \gamma_i A_i = 0, \\
+    \Rightarrow & X = DF^*\left(DF(Y) - \sum_{i=1}^m \gamma_i A_i\right), 
+\end{aligned}$$ {#eq-xsol}
+
+where the last line is due to the assumption that $F$ is  Legendre-type.
+
+Note here that the conjugate of $\A$ is $\Ac:\mathbb{R}^m \rightarrow \H^n$ defined as $\Ac(\gamma) = \sum_{i=1}^m \gamma_i A_i$, which is the last term in the expression for $X$ above.
+
+Substituting the expression for $X$ from @eq-xsol into @eq-kktfeasibility, we define the operator $H:\mathbb{R}^m\rightarrow\mathbb{R}^m$ whose zeros are the dual solution 
+
+$$\begin{aligned}
+    & H(\gamma) \triangleq \mathcal{A}(DF^*(DF(Y) - \mathcal{A}^*(\gamma))) - a.
+\end{aligned}$$ 
+
+Solving the optimisation problem is now a root-finding problem, so we use Newton's method. To do so, the derivative of $H$ is needed, which is given below
+
+$$\begin{aligned}
+    DH(\gamma)[b] = \mathcal{A}(D(DF^*)(DF(Y) - \mathcal{A}^*(\gamma))[-\mathcal{A}^*(b)]).
+\end{aligned}$$ 
+
+For notational simplicity, let $G(X) = DF^*(X)$, $G:\H^n\rightarrow\H^n$, and $\phi(\gamma) = DF(Y) - \mathcal{A}^*(\gamma)$, $\phi:\mathbb{R}^m\rightarrow\H^n$, then: 
+
+$$\begin{aligned}
+    DH(\gamma)[b] = \mathcal{A}(DG(\phi(\gamma))[-\mathcal{A}^*(b)]).
+\end{aligned}$$
+
+Knowing that $G$ acts on Hermitian matrices, assume it is additionally a spectral function and is induced by the scalar function $g(t)$, we can write out the derivative: 
+
+$$\begin{aligned}
+    DG(X)[B] = U \left( (g(\Lambda))^{[1]} \odot (U^*BU)\right) U^*
+\end{aligned}$$ 
+
+where $X = U\Lambda U^*$, and $\odot$ is the Hadamard product [@Bhatia_1997].
+
+Up until now, the analysis has not depended on specific function definition for $F$. Taking $F(X) = \hat{S}(X)$ gives the problem we are interested in. It is known that $\D_\hat{S}(X,Y)$, is jointly convex [@Effros_2009; @Tropp_2012]. We also know that $\hat{S}(X)$ is Legendre type: $D\hat{S}(X) = \log X$ and $D\hat{S}^*(X) = \exp X$ (this can be shown through a straightforward calculation), we also know that for $X\in\H^n$ it holds that $\log(\exp(X)) = X$, thus $(D\hat{S})^{-1} = D\hat{S}^*$.
+
+So, the problem we are trying to solve is 
+
+$$\begin{aligned}
+    H(\gamma) = \A(D\hat{S}^*(D\hat{S}(Y)- \Ac(\gamma))) - a = 0,
+\end{aligned}$$ 
+
+which results in the Newton step $d_k$ as the solution to $H(\gamma_k) - DH(\gamma_k)[d_k] = 0$.
+
+### Dual problem
+
+Taking @eq-entropyprojP as the primal problem, we can write the dual problem as 
+
+$$\begin{aligned}
+    (D) \ \min_z \ & F^*\left(\Ac(z) - \nabla F(Y) \right) + \sigma_{\{b\}}(-z) + F(Y) + \langle \nabla F(Y),Y\rangle, 
+\end{aligned}$$ {#eq-d_matproj}
+
+where $\sigma_{\{b\}}(-z)$ is the support function of $\{b\}$ at $-z$, defined by $\sigma_{\{b\}}(-z) = \sup_{x\in\{b\}} \langle -z, x\rangle$.
+
+So where does this dual formulation come from? We can write the primal problem as $\min_X \ \D_F(X,Y) + \delta_{\{b\}}(\mathcal{A}(X))$ to include the constraints in the objective. We know for primal problems of this form, the dual looks like $\min_z \ \D_F^*(\mathcal{A}^*(z),Y) + \delta_{\{b\}}^*(-z)$ for $z\in\mathbb{R}^m$ [@Hiriart-Urruty_Lemaréchal_2001]. Expanding this out we have: $\mathcal{A}^*(z) = \sum_{i=1}^m A_i z_i$, and $\delta^*_{\{b\}}(-z) = \sigma_{\{b\}}(-z)$. Which leaves 
+
+$$\begin{aligned}
+    \D_F^*(Z,Y) &= \sup_{X}\{ \langle Z,X\rangle - \D_F(X,Y)\} \\
+    &= \sup_{X} \{ \langle Z,X\rangle -F(X) + F(Y) + \langle DF(Y), Y-X \rangle \} \\
+    &= \sup_{X} \{ \langle Z - DF(Y), X \rangle - F(X) \} + F(Y) + \langle DF(Y), Y\rangle \\
+    &= F^*(Z-DF(Y)) + F(Y) + \langle DF(Y),Y\rangle.
+\end{aligned}$$ 
+
+And combining this all together gives the dual problem written in @eq-d_matproj.
+
+In the case of entropy, the conjugate function is $\hat{S}^*(Z) = \tr(\exp Z)$.
+
+
+
+
+## P2: Minimisation over second input {#sec-P2}
+
+For P2 and P3, we consider minimising relative entropy specifically, not the more general case of a Bregman divergence. 
+
+
+The problem we are looking at now is 
+
+$$\begin{aligned}
+\begin{split}
+    \min_Y & \ S(X||Y) \\
+    \st & \ \B(Y) = b,
+\end{split}
+\end{aligned}$$ {#eq-minKLsecond}
+
+where $\B$ is defined similarly to $\A$, $b\in\mathbb{R}^m$, and $X\in\H^n$ is fixed. The KKT conditions for the above problem are 
+
+$$\begin{aligned}
+    D_Y S(X||Y) + D_Y \left(\sum_{i=1}^m \phi_i(\langle B_i, Y\rangle - b_i) \right) = 0 
+\end{aligned}$$ {#eq-2argkkt1}
+
+$$\begin{aligned}
+    \B(Y) = b, 
+\end{aligned}$$ {#eq-2argkkt2}
+
+where $\phi \in\mathbb{R}^m$ with components $\phi_i\geq0$. Similarly to $\A(X)$, the dual of $\B(Y)$ is $\Bc(\phi) = \sum_{i=1}^m \phi_i B_i$. The problem becomes
+
+$$\begin{aligned}
+    D_Y\left(\tr(X\log X - X\log Y)   \right) + \Bc(\phi) = 0,
+\end{aligned}$$ 
+
+and all functions are trace functions, whose derivatives are simple to manage. The solution for $Y$ is 
+
+$$\begin{aligned}
+    Y = \Bc(\phi)^{-1}X.
+\end{aligned}$$
+
+Now, to determine $\phi$, we solve @eq-2argkkt2
+
+$$\begin{aligned}
+    \langle B_i, \Bc(\phi)^{-1}X \rangle = b_i \ \forall i=1,...,m.
+\end{aligned}$$
+
+### Dual Problem
+
+Bringing the constraints of the primal problem into the objective, we have $\min_Y \ \ S(X||Y) + \delta_{\{b\}}(\B(Y))$. Again, due to Fenchel-Rockafellar duality, we know the dual problem has the form $\max_z \ \ -\delta^*_{\{b\}}(z) - S^*(X||\B^*(z))$. What remains is to determine the conjugate of $S(X||Y)$ with respect to $Y$.
+
+$$\begin{aligned}
+S^*(X||Z) &= \sup_{Y} \{\langle Y,Z\rangle - \tr(X \log X) + \tr(X\log Y) \} \\
+\Rightarrow & Z + XY^{-1} = 0 \\
+& Y = -Z^{-1}X
+\end{aligned}$$
+
+Since $Y\in\H^n$, $Z$ must be defined such that this still holds.
+
+Using this, we determine the dual function is $S^*(X||Z) = -\tr(X) - \tr(X\log X) + \tr(X\log(-Z^{-1}X))$. Thus, the dual problem is
+
+$$\begin{aligned}
+\max_z \ & -\delta^*_{\{b\}}(z) + \tr(X) + \tr(X\log X) - \tr(X \log (\B^{-*}(z)X)) \\
+\st \ & \text{Z defined such that } Y\in\H^n.
+\end{aligned}$$
+
+## P3: Minimisation in the form of QKD {#sec-P3}
+
+For this section, we will work with a slight reformulation of the original problem from @eq-winickformulation
+
+$$\begin{aligned}
+\begin{split}
+    \min_\sigma \ & S(\sigma||\Z(\sigma)) \\
+    \st \ & \sigma = \G(\rho), \\
+    & \Gamma(\rho) = \gamma.
+\end{split}
+\end{aligned}$$ 
+
+This is to simplify the arguments of $S(\cdot || \cdot)$.
+
+Before addressing this problem directly, we start with a similar problem, but over vectors, to act as a proof-of-concept. Hopefully.
+
+### Vector case
+
+Let $f: \mathbb{R}^n\rightarrow \mathbb{R}^n$ linear such that $\ker(f) = \{0\}$, and $g:\mathbb{R}^n \rightarrow\mathbb{R}^m$ linear. The restriction that $\ker(f) = \{0\}$ is so that the logarithm remains defined over $f(x)$. Consider the problem 
+
+$$\begin{aligned}
+    \begin{split}
+        \min_x \ & s(x||f(x)) \\
+        \st \ & g(x) = p
+    \end{split}
+\end{aligned}$$ {#eq-relativeentvector}
+
+Previously, in the case of minimising over the first argument, the result came from solving the dual problem, and using that to solve the primal problem. Knowing this, and that the dual problem actually provides better guarantees of a feasible key rate [@Winick_Lütkenhaus_Coles_2018], we start by determining the dual problem to @eq-relativeentvector. Bringing the constraints into the objective gives 
+
+$$\begin{aligned}
+    \min_x \ \ s(x||f(x)) + \delta_{\{p\}}(g(x)),
+\end{aligned}$$ 
+
+where $\delta$ is the indicator function. By Fenchel-Rockafellar duality (theorem 31.2.1 of Rockafellar [@Rockafellar_2015]), we know that the dual problem has the form
+
+$$\begin{aligned}
+    \max_u \ \ -\delta^*_{b}(u) - (s(x||f(x)))*(g^*(u)).
+\end{aligned}$$
+
+The conjugate of the indicator is the support function, so we need to determine what $(s(x||f(x)))*(g^*(u))$ is.
+
+$$\begin{aligned}
+    (s(x||f(x)))*(w) &= \sup_x \{ \langle x,w\rangle - s(x||f(x))\} \\
+    &= \sup_x \{ \langle x, w - \log x + \log f(x) \rangle \} 
+\end{aligned}$$
+
+Now go about the standard way to solve: take derivative, set to 0, solve for $x$. 
+
+$$\begin{aligned}
+    w - \log x + \log f(x) - \one + Df(x) \frac{x}{f(x)} = 0,
+\end{aligned}$$ 
+
+note here that since $f$ is linear, it could be defined as $f(x) = Ax$, then $Df(x) = A\T$, and $Df(x)[y] = A\T y = f^*(y)$; and the division $\frac{x}{f(x)}$ is element-wise. So, we have 
+
+$$\begin{aligned}
+    0 &= w - \log x + \log f(x) - \one + f^*\left(\frac{x}{f(x)}\right)  \\
+    &= w - \log\left(\frac{x}{f(x)} \right) - \one + f^*\left(\frac{x}{f(x)}\right) 
+\end{aligned}$$ 
+
+which looks like it could be some sort of funny perspective transform. Anyway, consider the substitution $z = \frac{x}{f(x)}$, 
+
+$$\begin{aligned}
+    w - \log z - \one + f^*(z) &= 0.
+\end{aligned}$$ 
+
+Which still doesn't look very straightforward, but it's looking better. In the scalar case, this could be represented by the equation $bz - log z = a$, whose solution is $z = \frac{-W(-be^{-a})}{b}$, where $W$ is the Lambert $W$-function [@Weisstein]. If we go back to considering that not only are we working in $\mathbb{R}^n$, but linear functions in $\mathbb{R}^n$ have more complicated definitions than scalar$\times$vector, and even after determining an expression for $z$ we would still have to solve $z = \frac{x}{f(x)}$, it is reasonable to expect that the solution is very involved.
+
+Maybe we can get around this by introducing an additional variable 
+
+$$\begin{aligned}
+    \min_{x,y} \ & s(x||y) \\
+    \st \ & y = f(x), \\
+    & g(x) = p,
+\end{aligned}$$ 
+
+which is the same sort of reformulation used by @Hu_Im_Lin_Lütkenhaus_Wolkowicz_2022.
+
+### Matrix case
+Part of my current work. 
+
+
+
+## Implementations
+
+The three examples below solve a problem of the type P1 (see @sec-P1), in this case the objective function is the Bregman divergence, not specifically the relative entropy. 
+
+To reiterate, the form of the problem solved is:
+Let $X, Y\in\mathcal{H}$, $Y$ is fixed, $A_i\in\mathbb{R}^{m\times m}$ symmetric, $b\in\mathbb{R}^m$, $i=1,..,n$.
+
+$$\min_X D_F(X,Y) \ \textnormal{s.t. } \langle A_i,X\rangle = b_i$$
+
+where $F(X) = X\log(X)$.
+
+The first example uses just one constraint, a diagonal matrix, which makes the problem fairly simple to solve. The second example uses two constraints with random matrices, showing that the set-up can handle more difficult constraints. The third example shows the handling of more constraints and a larger system; it is still nowhere near the size of a physical QKD system, but it is in the same order of magnitude as the examples used in the Open OKD software [@Coles_Lütkenhaus_Lin_Metodiev_George_Li_Fang_Chemtov_Zhang_Böhm_et].
+
+{{< embed _P1_examples.ipynb echo=true >}}
+
+<!-- ``` julia
+using LinearAlgebra, Random, NLSolve, ForwardDiff, Roots
+``` -->
+
+I am currently working on implementations for P2 and P3, and plan on having those up and running within a couple months. 
+
+# Proposed future work
+Two recent arXiv publications come to mind when thinking about the future of this project. Renbo Zhao published an article on a generalised multiplicative gradient method for maximising concave functions, a category in which functions of the form $x \mapsto \sum_j p_j \log(x_j)$ fall [@Zhao_2022]. This problem format is similar to P2 described in @sec-P2, and the solution approach uses [Euclidean Jordan algebras](https://michael.orlitzky.com/documents/books/euclidean_jordan_algebras_for_optimization.pdf). The other article is by Karimi and Tunçel, which describes an interior point method (IPM) for solving problems of the same form as the key rate calculation [@Karimi_Tuncel_2023]. This approach using the results of @Fawzi_Saunderson_2022 on optimal self-concordant barriers for quantum relative entropies.
+
+Taking the approach by Zhao and extending it to solve problems in the same form as the key rate calculation is one of the directions this project can go. Comparing the multiplicative gradient method with the IPM for the key rate calculation would be interesting. Additionally, continuing the analysis of the dual problem approach in the current formulation with a Newton method approach would add to the comparison. A comparison between the algorithms would include metrics such as optimality gap, run time, number of eigenvalue decompositions, etc. 
+
+By the end of this calendar year, my goal is to have at least a draft (if not a submitted draft) of a publication with the extension of the multiplicative gradient method, compared with the current methods I've been working with, and other existing methods (such as the Euclidean Jordan algebra IPM). Ultimately, the goal of this project is a solver for problems of the type in @eq-winickformulation, which scales nicely and is competitive with the current state of the art. 
+

@@ -1,0 +1,30 @@
+---
+title: "Creating a post"
+---
+
+```bash
+mkdir -p posts/my-new-post # make it unique!
+cd posts/my-new-post
+```
+Now create a file called `index.qmd` with the following minimal yaml frontmatter:
+
+```yaml
+---
+title: "My new post"
+date: "2024-01-31"
+author: "Your Name"
+---
+```
+
+If you'll be embedding code in your post, at minimum you need to make sure that you have Jupyter installed.
+
+```bash
+python3 -m venv .venv
+pip3 install jupyter jupyter-cache
+```
+
+TODO: add details on Julia
+
+## Generate a pull request
+
+For now, I'm asking folks to push their pages by generaing a [pull request](https://www.youtube.com/watch?v=LdSwWxVzUpo). Once we have a better sense of how the system works, it may be easier to just push your changes directly.

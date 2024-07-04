@@ -1,0 +1,360 @@
+---
+title: "Convex formulations for nonnegative matrix factorization"
+author:
+  - name: Sam Burer
+    affiliation: University of Iowa
+    url: https://tippie.uiowa.edu/people/samuel-burer
+  - name: Michael P. Friedlander
+    url: http://friedlander.io
+    affiliation: University of British Columbia
+date: May 22, 2010
+date-modified: April 7, 2015
+number-sections: true
+categories:
+  - Nonnegative matrix factorization
+  - Completely positive matrices
+  - Doubly nonnegative cone
+image: figures/swimmer.png
+---
+
+# Introduction
+
+The analysis of data sets often requires the identification of
+components that capture the most significant features of the data.
+Principle component analysis (PCA) is one of the main approaches
+[@hastieElementsStatisticalLearning2001]. For data that is nonnegative (such as images), it
+is desirable to have an approach analogous to PCA that preserves the
+nonnegative structure of the data. Nonnegative matrix factorization has
+proven a successful approach for detecting essential features of such
+data [@leeLearningPartsObjects1999;@paateroPositiveMatrixFactorization1994]. Applications include computer
+vision (e.g., face recognition), machine learning, chemometrics, and no
+doubt others.
+
+Suppose our data set is represented by the $n\times m$ matrix $V$ which
+is componentwise nonnegative. We use the shorthand notation $V\ge0$. A
+nonnegative matrix factorization of $V$ is the decomposition
+$$
+ V \approx WH^T \hbox{\quad where\quad} W,H \ge 0,
+$${#eq-1}
+$W$ is $n\times r$,
+and $H$ is $m\times r$. The parameter $r$ determines a bound on the rank
+of the representation, and influences the quality of the approximation
+in @eq-1. For $r$ large enough, it is possible to achieve equality. (In particular, a
+trivial nonnegative factorization can be obtained by setting $r=m$,
+$W=V$ and $H=I$; of course, this is not a useful factorization.)
+
+In this note we amplify on a proposal by @vasiloglouiiIsometryConvexityDimensionality2009 [Ch. 4]
+that makes a connection between NMF and completely positive matrices,
+and explore how the problem of computing an NMF may be phrased as a
+convex program.
+
+# The nonlinear least-squares approach {#sec:nnls}
+
+One of the main approaches to computing the NMF of a matrix is based on
+solving the nonlinear least-squares formulation
+$$
+  \displaystyle\mathop{\hbox{minimize}}_{W,H\ge 0} \quad \|V - WH^T\|_F.
+$${#eq-2}
+A significant drawback of this approach is that the formulation is
+nonconvex and admits nonoptimal saddle points and many local minima
+which may not be of interest. In fact, this formulation is ill-posed: because $WH^T = (WS)(HS^{-T}\!)^T$ for any nonsingular matrix $S$, the solution set is necessarily unbounded. The most common approach for solving @eq-2 is the block coordinate descent method [@bertsekasNonlinearProgramming1997], also known in this
+context as the method of alternating least-squares (ALS) because each
+subproblem is a bound-constrained linear least-squares problem
+[@kolda_TensorDecompositionsApplications_2009]. Other methods include projected gradient [@linProjectedGradientMethods2007]
+and multiplicative updates [@leeAlgorithmsNonnegativeMatrix2000].
+
+# Completely positive matrices {#sec:cp}
+
+The symmetric $n\times n$ matrix $A$ is completely positive (CP) if
+there exists an $n\times r$ matrix $B$ such that
+$$A = B B^T \hbox{\quad with\quad} B\ge0;$$ the minimal integer $r$ such
+that $A$ is CP is the cp-rank of $A$. CP matrices are discussed in
+detail by @bermanCompletelyPositiveMatrices2003. Some useful
+properties of CP matrices include:
+
+1.  if $A$ is CP then $A\ge0$;
+
+2.  if $A$ is CP then $A$ is positive semi-definite;
+
+3.  the set of $n\times n$ CP matrices, $\mathcal{C}_n$, is a proper
+    cone;
+
+4.  all nonnegative diagonally dominant matrices are CP [@bermanCompletelyPositiveMatrices2003,
+    Theorem 2.5].
+
+If $A$ is both componentwise nonnegative and positive semi-definite,
+then it is said to be doubly nonnegative.
+
+# A first relaxation: minimizing the trace {#sec:relax1}
+
+The first convex formulation is based on embedding $V$ into the larger
+matrix $$K = \begin{bmatrix}E & V^T \\ V & F \hfill\end{bmatrix},$$
+where $E$ and $F$ are CP matrices that need to be determined. (The
+principal submatrices of CP matrices also must be CP [@bermanCompletelyPositiveMatrices2003,
+Prop. 2.4].) @vasiloglouiiIsometryConvexityDimensionality2009 observes that there always exists
+matrices $E$ and $F$ such that $K$ is CP: we can easily choose positive
+diagonal matrices that cause $K$ to be diagonally dominant; by Property
+P4, $K$ would therefore be CP. A CP factorization of $K=BB^T$ could then
+be used to deduce the NMF factors of $V$:
+$$
+K \equiv \begin{bmatrix}E & V^T \\ V & F\hfill\end{bmatrix}
+  =      B B^T
+  = \begin{bmatrix}H\\W\end{bmatrix}\begin{bmatrix}H^T & W^T\end{bmatrix}
+  = \begin{bmatrix}HH^T & HW^T \\ WH^T & WW^T\end{bmatrix}.
+$${#eq-7}
+Hence, a partition of the CP factor $B$ yields the requisite NMF factors $W$ and
+$H$.
+
+## Minimizing the rank
+
+Our first formulation is nonconvex, and is based on minimizing the rank
+of $E$ and $F$:
+$$
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{E,F} & \mathop{\hbox{rank}}(E) + \mathop{\hbox{rank}}(F)
+\\\mathop{\hbox{subject to}}& \begin{bmatrix}E & V^T \\ V & F\hfill\end{bmatrix} \in \mathcal{C}_{n+m}.
+  \end{array}
+$${#eq-3}
+Constructing matrices $E$ and $F$ with small rank has
+the benefit of implicitly constructing NMF factors $W$ and $H$ that have
+low rank. (Ideally, we would choose $r$ equal to the cp-rank of $V$, but
+that problem seems too hard.) This formulation is similar to
+Vasiloglou's proposal [@vasiloglouiiIsometryConvexityDimensionality2009 §4.1.1], except that Vasiloglou
+mistakenly only imposes the CP constraint on $E$ and $F$.
+
+## Minimizing the trace
+
+The first convex relaxation of @eq-3 is based on replacing the rank functions with the
+trace, which is its convex envelope (at least for all matrices with
+unit-or-less spectral norm). This yields the conic program
+$$
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{E,F} & \mathop{\hbox{\rm trace}}(E) + \mathop{\hbox{\rm trace}}(F)
+\\\mathop{\hbox{subject to}}& \begin{bmatrix}E & V^T \\ V & F\hfill\end{bmatrix} \in \mathcal{C}_{n+m}.
+\end{array}
+$${#eq-4}
+
+# A second relaxation: doubly nonnegative matrices
+
+The cone constraint in @eq-4, although convex, is difficult to work with. Following Burer's proposal [@burerOptimizingPolyhedralsemidefiniteRelaxation2010], we replace the completely positive cone in @eq-4 by the cone of doubly-nonnegative matrices
+$$
+  \mathcal{D}_n = \{ X\in\mathbb{S}^{n\times n} \mid X\ge0,\ X\succeq0\}.
+$$
+This yields the semi-definite program (SDP)
+$$
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{E,F} & \mathop{\hbox{\rm trace}}(E) + \mathop{\hbox{\rm trace}}(F)
+\\\mathop{\hbox{subject to}}& \begin{bmatrix}E & V^T \\ V & F\hfill\end{bmatrix} \in \mathcal{D}_{n+m}.
+  \end{array}
+$${#eq-5}
+
+Given a solution of this last problem, the next step in order to compute
+the required factors of $V$ is to compute a Cholesky decomposition of
+$K$. A partition of the Cholesky factors, as per
+@eq-7, give the factors $W$ and $H$. However, it is not guaranteed that the Cholesky
+factors will be nonnegative, as required by definition of the NMF.
+
+One way around this problem is to further embed $K$ into a larger matrix
+which we will require to be in $\mathcal{D}_{n+m+r}$, and we replace
+@eq-5 with the
+larger problem
+$$
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{E,F,H,W} & \mathop{\hbox{\rm trace}}(E) + \mathop{\hbox{\rm trace}}(F)
+\\\mathop{\hbox{subject to}}&  \begin{bmatrix}I   & H^T     & W^T                        
+                        \\    H   & E\hfill & V^T                        
+                        \\    W   & V\hfill & F\hfill\end{bmatrix} \in \mathcal{D}_{r+n+m}.
+  \end{array}
+$${#eq-6}
+The important quantities are $W$ and $H$, which can be used to redefine $E$ and $F$, and define the CP factorization
+$$\begin{bmatrix}I   & H^T     & W^T
+\\    H   & E\hfill & V^T
+\\    W   & V\hfill & F\hfill\end{bmatrix}
+= \begin{bmatrix} I \\ H   \\ W  \end{bmatrix}
+  \begin{bmatrix} I &  H^T &  W^T\end{bmatrix}.
+$$
+
+## Decomposition algorithm
+
+Problem @eq-6 fits into the following class of problems:
+$$
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{Y} & \mathop{\hbox{\rm trace}}(Y)
+\\\mathop{\hbox{subject to}}& Y \in \mathcal{D}_p \\
+                     & Y_{ij} = y_{ij} \ \ \forall \ (i,j) \in {\cal F},
+  \end{array}
+$${#eq-8}
+where ${\cal F}$ is a fixed, symmetric subset of $[p] \times [p]$ and, for each $(i,j) \in {\cal F}$, $y_{ij}$ is a fixed constant. For sizes $p \ge 100$, off-the-shelf interior-point methods require significant amounts of time to solve @eq-8.
+
+@burerOptimizingPolyhedralsemidefiniteRelaxation2010 presents a decomposition approach for problems
+similar to @eq-8, which can approximately solve problems with $p \approx$ 1,000. This
+method can be tailored to @eq-8. Introduce an auxiliarly variable $Z$ and reformulate
+@eq-8 as
+$$
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{Y,Z} & \mathop{\hbox{\rm trace}}(Y)
+\\\mathop{\hbox{subject to}}& Y \ge 0, \ Z \succeq 0 \\
+                     & Y_{ij} = y_{ij} \ \ \forall \ (i,j) \in {\cal F} \\
+                     & Y = Z.
+  \end{array}
+$${#eq-9}
+Relax the constraint $Y = Z$ and apply an augmented-Lagrangian approach. For fixed penalty parameter $\sigma > 0$ and multiplier $S$, the subproblem is
+$$
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{Y,Z} & \mathop{\hbox{\rm trace}}(Y) + S \bullet (Y-Z) + \frac{\sigma}{2} \| Y - Z \|_F^2
+\\\mathop{\hbox{subject to}}& Y \ge 0, \ Z \succeq 0 \\
+                     & Y_{ij} = y_{ij} \ \ \forall \ (i,j) \in {\cal F}.
+  \end{array}
+$${#eq-10}
+This subproblem is itself quite difficult, but one
+approach is to apply block-coordinate descent over the blocks $Y$ and
+$Z$. For fixed $Z$, optimizing $Y$ decomposes into $O(p^2)$
+one-dimensional convex QPs, many of which are fixed by the constraints
+$Y_{ij} = y_{ij}$. For fixed $Y$, optimizing $Z$ amounts to a single
+projection onto the positive semidefinite cone.
+
+In the decomposition algorithm, it is helpful to have an explicit upper
+bound $U_{ij}$ on each entry $Y_{ij}$ of an optimal solution. When
+$(i,j) \in {\cal F}$, this is easy; $U_{ij} = y_{ij}$. Otherwise, let
+$\bar Y$ be any feasible solution of
+@eq-8. Then, by positive semidefiniteness,
+$$
+Y_{ij} \le \max\{ Y_{ii}, Y_{jj} \} \le \mathop{\hbox{\rm trace}}(Y) \le \mathop{\hbox{\rm trace}}(\bar Y).
+$$
+One choice for $\bar Y$ is to fix $\bar Y_{ij} = y_{ij}$ for all $(i,j)
+\in {\cal F}$, set other off-diagonal $\bar Y_{ij} = 0$, and finally set
+diagonal $\bar Y_{ii}$ such that $\bar Y$ is diagonally dominant.
+
+## Algorithm
+
+Given symmetric $n \times n$ data $M$ and rectangular $n \times r$
+variable $R$, we wish to solve
+$$
+v^* := \displaystyle\mathop{\hbox{minimize}}_{R \ge 0} \| M - RR^T \|_F^2 = \displaystyle\mathop{\hbox{minimize}}_{X \in \mathcal{C}, \operatorname{cprank}(X) = r} \| M - X \|_F^2.
+$${#eq-16}
+A straightforward tractable relaxation is $\min \{\| M - X \|_F^2 : X
+\in \mathcal{D}\}$. However, $R$ plays no role in this relaxation, and
+so it is unclear how to recover a good approximation of an optimal $R$.
+
+One idea is to embed $R$ in the relaxation
+$$
+\min \left\{ \| M - X \|_F^2 : \begin{pmatrix} I & R^T \\ R & X \end{pmatrix}\in \mathcal{D}\right\}.
+$${#eq-17}
+However, one can see easily that $R = 0$ is feasible for any $X \in \mathcal{D}$. So this does not work. Another problem with this formulation is that it is symmetric with respect to the columns of $R$.  In fact, we claim that any (!) convex relaxation of @eq-16, which explicitly incorporates $R$, will return an optimal $R$ that is zero or
+rank-1.
+
+So we are forced (!) to try something else. For this, let $\bar R \ge 0$
+be an initial guess, and $\varepsilon > 0$. We solve instead
+$$
+v(\bar R,\varepsilon)^* := \displaystyle\mathop{\hbox{minimize}}_{R \ge 0, \|R - \bar R\|_F \le \varepsilon} \| M - RR^T \|_F^2,
+$${#eq-18}
+which has the tractable relaxation
+$$
+\min \left\{
+\| M - X \|_F \ \Bigg|\ 
+\begin{array}{l}
+\| R - \bar R \|_F \le \varepsilon \\
+\mathop{\hbox{\rm trace}}(X) - 2 \bar R \bullet R + \| \bar R \|_F^2 \le \varepsilon^2 \\
+\begin{pmatrix} I & R^T \\ R & X \end{pmatrix}\in \mathcal{D}
+\end{array}
+\right\}.
+$${#eq-19}
+The basic idea is to solve this for a new $\bar R$ and repeat over and over again.
+
+## Simple heuristic for solvable case
+
+Given $M$ and $r$, suppose $M=RR^T, R \ge 0$ is known to be solvable, but we still need to compute $R$. We propose the following heuristic algorithm (currently without stopping criterion) as a heuristic.
+
+::: {.callout-note title="Heuristic algorithm"}
+0. $M \in \mathcal{C}$ with $r = \operatorname{cprank}(M)$, $R^0 \ge 0$
+such that $M
+\succeq R^0(R^0)^T$.
+1. Solve the following optimization for optimal solution $\Delta^k$:
+   $$\label{eq:alg:heur}
+  \begin{array}{ll}
+  \displaystyle\mathop{\hbox{minimize}}_{\Delta} & \mathop{\hbox{\rm trace}}\left(M - R^k (R^k)^T - R^k \Delta^T - \Delta (R^k)^T \right) \\
+  \mathop{\hbox{subject to}}& \begin{pmatrix} I & (R^k + \Delta)^T \\ R^k + \Delta & M \end{pmatrix} \in \mathcal{D}.
+  \end{array}
+  $${#eq-alg:heur}
+2. Set $R^{k+1} := R^k + \Delta^k$.
+:::
+
+::: {#prp-heur}
+## Nonascent property of the heuristic
+For all $k$
+$$
+\mathop{\hbox{\rm trace}}( M - R^{k+1}(R^{k+1})^T ) \le \mathop{\hbox{\rm trace}}( M - R^k (R^k)^T ),
+$$
+with strict inequality if and only if $\Delta^k \ne 0$.
+:::
+
+::: proof
+Have
+$$
+\begin{aligned}
+\mathop{\hbox{\rm trace}}( M - R^{k+1}(R^{k+1})^T )
+&= \mathop{\hbox{\rm trace}}( M - (R^k + \Delta^k)(R^k + \Delta^k)^T ) \\
+&= \mathop{\hbox{\rm trace}}( M - R^k (R^k)^T - R^k (\Delta^k)^T - \Delta^k (R^k)^T ) - \| \Delta^k \|_F^2 \\
+&\le \mathop{\hbox{\rm trace}}( M - R^k (R^k)^T - R^k (\Delta^k)^T - \Delta^k (R^k)^T ) \\
+&\le \mathop{\hbox{\rm trace}}( M - R^k (R^k)^T ),
+\end{aligned}
+$$
+where the last inequality follows because $\Delta = 0$
+is feasible for @eq-alg:heur.
+:::
+
+::: {#prp-heur2}
+If
+$\lim_{k \to \infty} \mathop{\hbox{\rm trace}}( M - R^{k+1}(R^{k+1})^T ) = 0$
+and $\bar
+R$ is a limit point of $\{ R^k \}$, then $M = \bar R \bar R^T$.
+:::
+
+::: proof
+By construction, $M \succeq R^k(R^k)^T$ for all $k$. Hence,
+$M \succeq
+\bar R \bar R^T$ with
+$\mathop{\hbox{\rm trace}}(M - \bar R \bar R^T) = 0$. This implies $M = \bar R \bar R^T$.
+:::
+
+::: {#prp-heur3}
+The sequence $\| M - R^k (R^k)^T \|_F$ is bounded above by the
+non-increasing sequence $\mathop{\hbox{\rm trace}}(M - R^k(R^k)^T )$.
+:::
+
+::: proof
+By construction, $M - R^k(R^k)^T$ is positive semidefinite. For
+all $P \succeq 0$, it is well known that
+$\| P \|_F \le \mathop{\hbox{\rm trace}}(P)$ since $\| P \|_F$ is the
+2-norm of the vector of eigenvalues and $\mathop{\hbox{\rm trace}}(P)$
+is the 1-norm.
+:::
+
+## Notes
+
+Let $N$ be a matrix whose columns span $\mathop{\hbox{\rm null}}(M)$,
+and suppose $M
+\succeq RR^T$. Then $0 \preceq N^T (M - RR^T) N = - N^T RR^T N$, and so
+$R^T N = 0$. Moreover,
+$$
+\begin{pmatrix} I & R^T \\ R & M \end{pmatrix}
+\begin{pmatrix} 0 \\ N \end{pmatrix} = 
+\begin{pmatrix} R^T N \\ MN \end{pmatrix} = 
+\begin{pmatrix} 0 \\ 0 \end{pmatrix}.
+$$
+
+# Numerical experiments {#sec:numer-exper}
+
+## Nonnegative matrix factorization {#sec:nmf}
+
+<!-- ![Faces from the CBCL dataset](figures/cbcl_orig){#fig:cbcl} -->
+
+![Basis via DNN and cpfac_js](figures/cpfac_js){#fig-cpfac_js}
+
+![Basis via DNN and cpfac_relax_nosym](figures/cpfac_relax_nosym){#fig-cpfac_relax_nosym}
+
+![Basis via NMF projected gradient](figures/nmf_als){#fig-nmf_als}
+
+![Swimmer data set.](figures/swimmer){#fig-swimmer}
+
+

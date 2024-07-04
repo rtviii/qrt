@@ -1,0 +1,5 @@
+---
+title: "About"
+---
+
+Instructions on addding [new posts](new-posts.qmd).

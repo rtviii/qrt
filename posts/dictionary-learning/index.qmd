@@ -1,0 +1,228 @@
+---
+title: "Atomic Dictionary Learning"
+subtitle: "I want a GPU for Christmas!"
+author:
+  - name: "Michael P. Friedlander" 
+    url: "https://friedlander.io"
+    email: "michael.friedlander@ubc.ca"
+    affiliations:
+      - name: Department of Computer Science
+        url: "https://www.cs.ubc.ca"
+      - name: Department of Mathematics
+        url: "https://www.math.ubc.ca"
+      - name: University of British Columbia
+        url: "https://www.ubc.ca"
+date: "17 March 2021"
+date-modified: 20 Feb 2024
+categories: [dictionary learning, sparsity, conditional gradient]
+execute:
+  freeze: true
+  cache: true
+image: atoms.png
+---
+
+The conditional gradient method seems an effective way to approximate a vector as a sum of atoms from a given atomic set. What if we don't know what's the right atomic set for the decomposition of vectors from a large dataset? This notebook explores the feasibility of using techniques from automatic differentiation and stochastic gradient descent to construct an atomic set.
+
+Here's a highly-simplified setup which let's me experiment with tools from the [Flux.jl](https://fluxml.ai) ecosystem.
+
+Let $\{b_i\}_{i=1}^N\subset\mathbb{R}^m$ be the dataset we wish to decompose. We consider the optimization problem
+$$
+\min_M\ \min_y\left\{\frac1N\sum_{i=1}^N\|y-b_i\|\ \mid \gamma_{M\mathbb{B}_1}(y)\le \tau\right\},
+$$
+where $M$ is an $m$-by-$n$ matrix, and $\mathbb{B}_1=\{\pm e_i\}_{i=1}^n\subset\mathbb{R}^n$ is the set of canonical unit vectors. Then the mapped unit ball $M\mathbb{B}_1$ is simply set signed columns of $M$, and we see that the problem aims to compute the columns of $M$ that give a good sparse representation of the vectors $b_1,\ldots,b_N$.
+
+If we assume that $M$ is nonsingular, then the problem is equivalent to
+$$
+\min_M\ \min_y\left\{ \frac1N\sum_{i=1}^N\|Mx-b_i\|\ \mid\ \gamma_{\mathbb{B}_1}(x)\le \tau\right\}.
+$$
+
+In this first draft, I just want to get a handle on using the Flux tools, and so will entirely ignore the constraint. We can come back to that later.
+
+```{julia}
+import Pkg
+Pkg.activate(".")
+using HDF5, LinearAlgebra, Plots, Flux, Lazy, Distributions, Statistics
+import Random: seed!
+```
+
+## Atomic Descent
+
+Consider the least-squares loss
+$$
+f_{M,b}(x):=\tfrac12\|Mx-b\|^2,
+$$
+where $M$ and $b$ are fixed. We can implement various generalizations of a descent method, where for each iterate $x$, the negative gradient $z=-\nabla f_{M,b}(x)$ is pushed through the subgradient map of a convex function that selects an aligning atom. Some examples are given below.
+
+But first, here's the descent method `atomicdescent`. The parameter `depth` controls the number of iterations.
+
+```{julia}
+function atomicdescent(ball, M, b; depth=10)
+	x = zeros(length(M'b))
+	r = copy(b);        f = [0.5*norm(r)^2]
+	for k = 1:depth
+		a = ball'(M'r)             # <--- many aligning choices! See below.
+		Ma = M*a
+		α = dot(Ma, r)/dot(Ma, Ma) # <--- exact linearch optional.
+		α < 0 && break
+		x = x + α*a
+		r = r - α*Ma;   f = [f; 0.5*norm(r)^2]
+	end
+	return 0.5*norm(r)^2, x, f
+end;
+```
+
+### Norms and descent variants
+
+We can implement various standard methods by choosing a corresponding function for the aligning function `ball`:
+
+- **coordinate descent** (Infinity-norm ball):
+  $$\|z\|_\infty=\max|z_j|.$$
+- **gradient descent** (2-norm ball):
+  $$\|z\|_2 = \sqrt{z^T z}.$$
+- **preconditioned gradient descent** (elliptic ball):
+  $$\|z\|_B = \sqrt{z^T B z},$$
+	where $B$ approximates the inverse objective Hessian. Below we choose $B = \mbox{\sf Diag}(M^TM)^{-1}$.
+
+Here are the kernel function definitions.
+
+```{julia}
+infball(z) = maximum(abs, z)
+twoball(z) = norm(z)
+sclball(z, M) = twoball(z./diag(M'M));
+```
+
+### Test the descent code
+
+Verify on a small random problem that the algorithm works as expected.
+
+```{julia}
+seed!(1234)
+(m, n, p) = 50, 6, 0.8
+x = rand(Bernoulli(p), n)
+M = randn(m,n)
+b = M*x
+
+@> begin # lazy threading is awesome!
+	map([twoball, infball, z->sclball(z,M)]) do ball
+		atomicdescent(ball, M, b, depth=20)[3]
+	end
+	plot(yaxis=:log, lab=["2-ball" "inf-ball" "scaled ball"])
+end
+```
+
+## Learning a random subspace
+
+This experiment will try to learn the basis for a linear subspace. This is a pretty silly experiment since there are much more direct ways to do this. (See the [Procrustes problem](#procrustes-problem) below.) But the main aim here is to test that we can actually differentiate through `atomicdescent` and apply the stochastic gradient method.
+
+Let the columns of the $n$-by-$k$ orthonormal matrix $Q$ span this subspace. Then we can generate samples `b` from this space via
+
+$$
+b = Qv
+$$
+
+by sampling normalized Gaussian vectors $v$.
+
+Define the `Subspace` type, a constructor that produces an $k$-dimensional linear subspace embedded in $\mathbb{R}^m$. Make it callable.
+
+```{julia}	
+struct Subspace
+	Q
+end
+function Subspace(m, k)
+	A = randn(m, k)
+	return Subspace(qr(A).Q[:,1:k])
+end
+function (s::Subspace)()
+	n = size(s.Q, 2)
+	v = (v=randn(n)) / norm(v)
+	return s.Q*v		
+end
+```
+
+### Loss functions
+
+We define three loss functions that will be used for the training:
+
+1. `loss(M, b)` computes the squared Euclidean distance between the vector `b` and the range of `M`.
+1. `loss(M)` computes the empirical loss between random samples drawn from `Subspace` (defined above) and the range of `M`.
+1. `atomicloss(M, b)` returns the loss computed by `atomicdescent` for a given `M` and `b`.
+
+```{julia}
+loss(M, b) = 0.5*norm(b - M*(M\b))^2
+loss(M; trials=100) = mean(b->loss(M, b), take(trials, repeatedly(sampler)))
+atomicloss(M, b) = atomicdescent(infball, M, b, depth=2)[1]
+```
+
+### Stochastic gradient descent
+
+Apply stochastic gradient descent to compute an approximation to the subspace. We'll use this small random data set.
+
+```{julia}
+(m, k) = 50, 2
+sampler = Subspace(m, k)
+M = randn(m, k);
+```
+
+Train the model.
+
+```{julia}
+history = [loss(M)]
+Mtrain = copy(M)
+opt = Momentum(1)
+for b in take(100, repeatedly(sampler))
+	g = gradient(M->atomicloss(M, b), Mtrain)[1]
+	Flux.update!(opt, Mtrain, g)
+	push!(history, loss(Mtrain))
+end
+plot(history, yaxis=:log)
+```
+
+## Next steps
+
+The subspace learning example above is a toy, and the `atomicdescent` implementation above won't allow for `ball` kernels defined on the extended reals, such as the gauge to the simplex, which would allow for nonnegativity.
+
+Some things to try:
+
+- Implement a conditional-gradient method with $\tau=\|b\|/\sigma_{\mathcal A}(M^T b)$, which is the parameter set by the first iteration of the level-set method for the problem
+$$
+\min_x\ \gamma_A(x)\ \mbox{subject to}\ Mx=b.
+$$
+- Use the method to learn a parts-based representation of the Swimmer dataset.
+
+### Swimmer dataset
+
+The _Swimmer_ dataset [@donoho2003does] could be a good test set.
+
+```{julia}
+#| echo: true
+#| output: asis
+swimmers = h5open("Swimmer.h5","r") do dataset
+		     s = convert(Array{Float32,3}, read(dataset)["Y"])
+           	 # shift the configuration index to the end (needed for Flux)
+	         s = permutedims(s, (2,3,1))
+	         # normalize each image
+	         s /= 255
+	         maxper = maximum(reshape(s, prod(size(s)[1:2]),:))
+	         return broadcast(/, s, maxper)
+end
+println("The set contains $(size(swimmers)[3]) swimmer configurations, each of size $(size(swimmers)[1:2]).")
+```
+
+Here are the first 25 swimmer configurations in the dataset.
+
+```{julia}
+plt = [plot(Gray.(swimmers[:,:,i])) for i in 1:25]
+plot(plt..., axis=([],false),layout=(5,5))
+```
+
+### Procrustes problem
+$$
+Q = \mbox{arg\,min}\left\{\,\|QA-B\|_F \mid Q^TQ=I\,\right\}
+$$
+
+```{julia}
+function procrustes(A, B)
+	U, s, V = svd(B*A')
+	return U*V'
+end;
+```

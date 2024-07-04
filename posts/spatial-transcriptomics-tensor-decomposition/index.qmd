@@ -1,0 +1,45 @@
+---
+title: "Spatial Transcriptomics Tensor Decomposition"
+author:
+  - name: "Naomi Graham" 
+    affiliation: "University of British Columbia"
+date: "22 February 2024"
+categories: [tensor decomposition]    
+---
+
+
+Suppose we rearrange the gene expression matrix by expanding the first (spatial) dimension into 2-dimensional grid, so that
+
+$$
+A_{ijk} = \text{probability of a read being of gene type } k \text{ at coordinate } (i,j).
+$$
+
+For each coordinate $(i,j) \in \mathbb R^{m_1 \times m_2}$ , $A_{ij:} \in \mathbb R^n$ is the corresponding gene expression vector. We expect that though each gene expression vector contains information about relatively many ($n$) genes, there are relatively few genes that actually characterize the cell. As such, we assume that any $A_{ij:}$ can be expressed as a linear combination of relatively few ($r_g << n$) basis vectors $u_1, \dots, u_{r_g}$. Namely,
+$$
+A_{ij:} = \sum_{l =1}^{r_g} v_{ijl} u_l.
+$$
+
+In other words,
+$$
+A = VU^T,
+$$
+where $U = \matrix{ [u_1 & \dots & u_{r_g} ]} \in \mathbb R^{n \times r_g}$ is the basis matrix and $V$ is the tensor made up of $r_g$ horizontally stacked matrices. 
+
+For every $l$, $v_{::l}$ is a form of image, and is therefore spatially low rank. Question, this is now an "image" in gene space but is this still going to be low rank? perhaps not?
+
+Now suppose we want to doubly compress $A$, i.e. use the assumption about the gene space as well as the image space being low dimensional. We can write this as full Tucker decomposition:
+
+$$
+A = G \times_1 K \times_2 J \times_3 U
+$$
+where $G \in \mathbb R^{r_x \times r_y \times r_g}, U \in \mathbb R^{n \times n_g}_{(+)}, K \in \mathbb R^{m_1 \times r_x} , J \in \mathbb R^{m_2 \times r_y}$.
+
+Suppose $Y$ is the observed noisy tensor which we pre-regularize using a KDE transformation step. 
+
+Then we model the problem as follows
+
+$$
+\min_{G, K, J, U} ||Y - G \times_1 K \times_2 J \times_3 U ||_2^2.
+$$
+
+and solve it using block coordinate descent. We might want to introduce some scaling constraint to make sure the factors don't get too small/large. Additionally we may want to enforce non-negativity of $U$, depending what the biological interpretation is of the basis vectors that comprise the columms of $U$.

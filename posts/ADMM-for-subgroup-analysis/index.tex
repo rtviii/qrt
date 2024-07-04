@@ -1,0 +1,432 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  letterpaper,
+  DIV=11,
+  numbers=noendperiod]{scrartcl}
+
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else  
+    % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\setcounter{secnumdepth}{5}
+% Make \paragraph and \subparagraph free-standing
+\makeatletter
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}{
+    \@ifstar
+      \xxxParagraphStar
+      \xxxParagraphNoStar
+  }
+  \newcommand{\xxxParagraphStar}[1]{\oldparagraph*{#1}\mbox{}}
+  \newcommand{\xxxParagraphNoStar}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}{
+    \@ifstar
+      \xxxSubParagraphStar
+      \xxxSubParagraphNoStar
+  }
+  \newcommand{\xxxSubParagraphStar}[1]{\oldsubparagraph*{#1}\mbox{}}
+  \newcommand{\xxxSubParagraphNoStar}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+\makeatother
+
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+% definitions for citeproc citations
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ % allow citations to break across lines
+ \let\@cite@ofmt\@firstofone
+ % avoid brackets around text for \cite:
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2] % #1 hanging-indent, #2 entry-spacing
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
+  \fi
+  % set entry spacing
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{bm}
+\KOMAoption{captions}{tableheading}
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\usepackage{amsthm}
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[section]
+\theoremstyle{remark}
+\AtBeginDocument{\renewcommand*{\proofname}{Proof}}
+\newtheorem*{remark}{Remark}
+\newtheorem*{solution}{Solution}
+\newtheorem{refremark}{Remark}[section]
+\newtheorem{refsolution}{Solution}[section]
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage{bookmark}
+
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={Alternating Direction Method of Multipliers for distributed subgroup analysis},
+  pdfauthor={Ying Lin},
+  pdfkeywords={distributed optimization, subgroup analysis, ADMM},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+
+\title{Alternating Direction Method of Multipliers for distributed
+subgroup analysis}
+\author{Ying Lin}
+\date{2024-03-14}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+This post briefly introduces how to apply Alternating Direction Method
+of Multipliers (ADMM) to solve the distributed subgroup analysis,
+particularly the one regularized by fused lasso.
+\end{abstract}
+
+
+\newcommand\dom{\textrm{dom}\,}
+
+\newcommand\argmin{\operatorname*{argmin}}
+\newcommand\prox{\textrm{prox}}
+\allowdisplaybreaks
+
+\section{Introduction}\label{sec-introduction}
+
+Given a communication network (a bidirected graph)
+\(\mathcal{G} = (\mathcal{V}, \mathcal{E})\)\footnote{Note that
+  \((i, j) \in \mathcal{E}\) if and only if \((j, i) \in \mathcal{E}\).
+  By convention, we assume that \((i, i) \notin \mathcal{E}\) for all
+  \(i \in \mathcal{V}\).} with the number of nodes
+\(| \mathcal{V} | = K\), consider the following distributed optimization
+problem \begin{equation}\phantomsection\label{eq-opt-prob}{
+\min_{\mathbf{x}:=\{x_k \in \mathbb{R}^d\}_{k\in \mathcal{V}}} \sum_{k \in \mathcal{V}} f_k(x_k) + \lambda \sum_{(i, j) \in \mathcal{E}} \| x_i - x_j \|_1,
+}\end{equation} where \(\mathbf{x} \in \mathbb{R}^{dK}\) is the global
+target variables with \(x_k\) being the local model parameter for node
+\(k \in \mathcal{V}\); \(f_k : \mathbb{R}^d \rightarrow \mathbb{R}\) is
+the convex but not necessary smooth local loss function for node
+\(k \in \mathcal{V}\); \(\| \cdot \|_1\) is the 1-norm. Examples of
+\(f_k\) include \emph{least squares} and \emph{hinge loss function} (for
+training \emph{support vector machine}). In this post, we consider using
+Alternating Direction Method of Multipliers (ADMM) to solve this problem
+in the distributed setting without any restriction on communication.
+
+In the distributed setting, a node \(k \in \mathcal{V}\) can only access
+its local information (e.g., local loss function \(f_k\) and local
+variables \(x_k\)), and obtain limited information via communication
+with its neighbors (e.g., \(x_j\) for \(j \in \mathcal{N}_k\) where
+\(\mathcal{N}_k\) is the set of nodes adjacent to node \(k\)).
+
+We first deduce the dual problem of (\ref{eq-opt-prob}). Then the ADMM
+will be developed.
+
+\section{Dual problem and ADMM}\label{sec-dual-prob-ADMM}
+
+\begin{proposition}[]\protect\hypertarget{prp-dual-prob}{}\label{prp-dual-prob}
+
+The dual problem of (\ref{eq-opt-prob}) is
+\begin{equation}\phantomsection\label{eq-dual-prob}{
+\begin{aligned}
+  \max_{\mathbf{w} := \{w_{ij}\}_{(i, j) \in \mathcal{E}}} & \quad - \sum_{k \in \mathcal{V}} f_k^{*} ( \sum_{j \in \mathcal{N}_k} (w_{jk} - w_{kj}) ) \\[0.2cm]
+  \text{s.t. } & \quad \| w_{ij} \|_{\infty} \leq \lambda \quad \forall (i, j) \in \mathcal{E},
+\end{aligned}
+}\end{equation} where
+\(\mathbf{w} := \{w_{ij}\}_{(i, j) \in \mathcal{E}} \in \mathbb{R}^{d| \mathcal{E} |}\)
+contains the dual variables; \(f_k^{*}\) is the convex conjugate of
+\(f_k\); \(\mathcal{N}_k\) is the set of nodes adjacent to node
+\(k \in \mathcal{V}\); \(\| \cdot \|_{\infty}\) is the infinity norm.
+
+\end{proposition}
+
+\begin{proof}
+We first rewrite (\ref{eq-opt-prob}) as the following equivalent
+constraint optimization problem
+\begin{equation}\phantomsection\label{eq-con-prob}{
+\begin{aligned}
+  \min_{\mathbf{x}, \mathbf{d}} & \quad \sum_{k \in \mathcal{V}} f_k(x_k) + \lambda \sum_{(i, j) \in \mathcal{E}} \| d_{ij} \|_1 \\
+  \text{s.t.} & \quad d_{ij} = x_i - x_j \quad \forall (i, j) \in \mathcal{E},
+\end{aligned}
+}\end{equation} where
+\(\mathbf{d} := \{d_{ij}\}_{(i, j) \in \mathcal{E}} \in \mathbb{R}^{d| \mathcal{E} |}\)
+is the dummy variable. The Lagrangian function of (\ref{eq-con-prob}) is
+\[
+\mathcal{L}(\mathbf{x}, \mathbf{w}) = \sum_{k \in \mathcal{V}} f_k(x_k) + \lambda \sum_{(i, j) \in \mathcal{E}} \| d_{ij} \|_1 + \sum_{(i, j) \in \mathcal{E}} \langle w_{ij}, x_i - x_j - d_{ij} \rangle,
+\] where
+\(\mathbf{w} := \{w_{ij}\}_{(i, j) \in \mathcal{E}} \in \mathbb{R}^{d| \mathcal{E} |}\)
+is the dual variable.
+
+Notice that we have \[
+\begin{aligned}
+  & \min_{x_k} \quad f_k(x_k) - \langle x_k, \sum_{j \in \mathcal{N}_k}(w_{jk} - w_{kj}) \rangle = -f_k^{*}(\sum_{j \in \mathcal{N}_k}(w_{jk} - w_{kj})); \\[0.2cm]
+  & \min_{d_{ij}} \quad \lambda \| d_{ij} \|_1 - \langle w_{ij}, d_{ij} \rangle =
+    \begin{cases}
+      0 & \text{if } \| w_{ij} \|_{\infty} \leq \lambda, \\
+      -\infty & \text{otherwise}.
+    \end{cases}
+\end{aligned}
+\] Therefore, we have the dual problem as in (\ref{eq-dual-prob}).
+\end{proof}
+
+Next we move on to the development of the corresponding ADMM.
+
+Given the augmented parameter \(\beta > 0\), consider the augmented
+Lagrangian function with respect to (\ref{eq-con-prob}), defined as \[
+\begin{aligned}
+  \mathcal{L}_{\beta}(\mathbf{x}, \mathbf{d}, \mathbf{w}) & := \sum_{k \in \mathcal{V}} f_k(x_k) + \lambda \sum_{(i, j) \in \mathcal{E}} \| d_{ij} \|_1 + \sum_{(i, j) \in \mathcal{E}} \langle w_{ij}, x_i - x_j - d_{ij} \rangle \\
+  & \qquad \qquad + \frac{\beta}{2} \sum_{(i, j) \in \mathcal{E}} \| x_i - x_j - d_{ij} \|^2.
+\end{aligned}
+\]
+
+For simplicity, we make use of the \emph{incidence matrix}
+\(M \in \mathbb{R}^{| \mathcal{E} | \times | \mathcal{E} |}\) and the
+\emph{Laplacian matrix}
+\(L = M^{\top}M \in \mathbb{R}^{| \mathcal{E} | \times | \mathcal{E} |}\)
+of the communiaction graph \(\mathcal{G}\), which are defined by \[
+M_{ij} = \begin{cases}
+  1 & \text{if } (i, j) \in \mathcal{E}, \\
+  -1 & \text{if } (j, i) \in \mathcal{E}, \\
+  0 & \text{otherwise};
+\end{cases} \qquad
+L_{ij} =
+\begin{cases}
+  | \mathcal{N}_i | & \text{if } i = j, \\
+  -1 & \text{if } (i, j) \in \mathcal{E}, \\
+  0 & \text{otherwise}.
+\end{cases}
+\]
+
+Using \(M\), we can simplify the augmented Lagrangian function as \[
+\begin{aligned}
+  \mathcal{L}_{\beta}(\mathbf{x}, \mathbf{d}, \mathbf{w}) = & \sum_{k \in \mathcal{V}} (f_k(x_k) + \langle x_k, \sum_{j \in \mathcal{N}_k} (w_{kj} - w_{jk}) \rangle ) \\
+                                  & \quad \quad + \sum_{(i, j) \in \mathcal{E}} ( \lambda \| d_{ij} \|_1 - \langle w_{ij}, d_{ij} \rangle + \frac{\beta}{2} \| x_i - x_j - d_{ij} \|^2 ) \\
+  = & \sum_{k \in \mathcal{V}} (f_k(x_k) + \langle x_k, \sum_{j \in \mathcal{N}_k} (w_{kj} - w_{jk}) \rangle ) \\
+  & \quad \quad + \lambda \| \mathbf{d} \|_1 - \langle \mathbf{w}, \mathbf{d} \rangle + \frac{\beta}{2} \| (M \otimes I_d) \mathbf{x} - \mathbf{d} \|^2 \\
+  = & \sum_{k \in \mathcal{V}} (f_k(x_k) + \langle x_k, \sum_{j \in \mathcal{N}_k} (w_{kj} - w_{jk}) \rangle) \\
+  & \quad \quad + \lambda \| \mathbf{d} \|_1 - \langle \mathbf{w}, \mathbf{d} \rangle + \frac{\beta}{2} \| (M \otimes I_d) \mathbf{x} \|^2 - \beta \langle (M \otimes I_d) \mathbf{x}, \mathbf{d} \rangle + \frac{\beta}{2} \| \mathbf{d} \|^2,
+\end{aligned}
+\] where \(I_d\) is the \(d \times d\) identity matrix.
+
+The classical ADMM applied to (\ref{eq-con-prob}) consists of the update
+formulae \[
+\left\{
+  \begin{aligned}
+    & \mathbf{x}^{t+1} = \operatorname*{argmin}_{\mathbf{x}} \mathcal{L}_{\beta}(\mathbf{x}, \mathbf{d}^t, \mathbf{w}^t), \\
+    & \mathbf{d}^{t+1} = \operatorname*{argmin}_{\mathbf{d}} \mathcal{L}_{\beta}(\mathbf{x}^{t+1}, \mathbf{d}, \mathbf{w}^t), \\
+    & \mathbf{w}^{t+1} = \mathbf{w}^t + \beta ((M \otimes I_d) \mathbf{x}^{t+1} - \mathbf{d}^{t+1}).
+  \end{aligned}
+\right.
+\] One can readily see that the \(\mathbf{x}\)-update admits the form \[
+  \mathbf{x}^{t+1} \!=\! \operatorname*{argmin}_{\mathbf{x}} \sum_{k \in \mathcal{V}} (f_k(x_k) + \langle x_k, \sum_{j \in \mathcal{N}_k} (w_{kj}^t - w_{jk}^t) \rangle) + \frac{\beta}{2} \| (M \otimes I_d) \mathbf{x} \|^2 - \beta \langle (M \otimes I_d) \mathbf{x}, \mathbf{d}^t \rangle,
+\] where \((M\otimes I_d)\mathbf{x}\) involves the full knowledge of the
+graph \(\mathcal{G}\). However, the full information of the graph
+\(\mathcal{G}\) is unrevealed to any of nodes in the distributed
+setting. It follows that in this case the classical ADMM possesses more
+than three blocks, which does not converge in general. To address this
+issue, we use the proximal ADMM by adding a proximal term in the
+\(\mathbf{x}\)-update subproblem to make the subproblem solvable in
+parallel (Fazel et al. 2013; Li and Pong 2015). For this approach, we
+require a valid Bregman function, which we now define.
+
+Let \[
+\phi(\mathbf{x}) = \beta \| (N \otimes I_d) \mathbf{x} \|^2 - \frac{\beta}{2} \| (M \otimes I_d) \mathbf{x} \|^2,
+\] where \(N \in \mathbb{R}^{K \times K}\) is the diagonal matrix whose
+diagonal elements are \(N_{ii} = \sqrt{| \mathcal{N}_i |}\). The Hessian
+of \(\phi\) is hence given by \[
+\nabla ^2 \phi(\mathbf{x}) = 2\beta (N^{\top}N \otimes I_d ) - \beta (M^{\top}M \otimes I_d) = (2\beta N^{\top}N - \beta M^{\top}M ) \otimes I_d =: P \otimes I_d.
+\] Recall that \(M^{\top}M = L\) and notice that \(2\beta N^{\top}N\) is
+again a diagonal matrix whose \(i\)-th diagonal element is
+\(2\beta| \mathcal{N}_i |\). We can then see that \[
+P_{ij} =
+\begin{cases}
+  \beta | \mathcal{N}_i | & \text{if } i = j \\
+  \beta & \text{if } (i, j) \in \mathcal{E} \\
+  0 & \text{otherwise}
+\end{cases}.
+\] Hence it holds that \(\nabla ^2 \phi (\mathbf{x}) \succeq 0\) thanks
+to the Gershgorin circle theorem. Thus, \(\phi\) is a valid kernel for
+defining the Bregman distance \[
+D_{\phi}(\mathbf{x}_1, \mathbf{x}_2) = \phi(\mathbf{x}_1) - \phi(\mathbf{x}_2) - \langle \nabla \phi(\mathbf{x}_2), \mathbf{x}_1 - \mathbf{x}_2 \rangle.
+\]
+
+Now, the proximal ADMM applied to (\ref{eq-con-prob}) is \[
+\left\{
+  \begin{aligned}
+    & \mathbf{x}^{t+1} = \operatorname*{argmin}_{\mathbf{x}} \mathcal{L}_{\beta}(\mathbf{x}, \mathbf{d}^t, \mathbf{w}^t) + D_{\phi}(\mathbf{x}, \mathbf{x}^t), \\
+    & \mathbf{d}^{t+1} = \operatorname*{argmin}_{\mathbf{d}} \mathcal{L}_{\beta}(\mathbf{x}^{t+1}, \mathbf{d}, \mathbf{w}^t), \\
+    & \mathbf{w}^{t+1} = \mathbf{w}^t + \beta ((M \otimes I_d) \mathbf{x}^{t+1} - \mathbf{d}^{t+1}).
+  \end{aligned}
+\right.
+\]
+
+For the \(\mathbf{x}\)-update, we can see that the corresponding
+minimization problem now decouples as \begin{align*}
+  &~\mathbf{x}^{t+1} = \operatorname*{argmin}_{\mathbf{x}} \mathcal{L}_{\beta}(\mathbf{x}, \mathbf{d}^t, \mathbf{w}^t) + D_{\phi}(\mathbf{x}, \mathbf{x}^t) \\
+  = &~\operatorname*{argmin}_{\mathbf{x}} \sum_{k \in \mathcal{V}} \Big\{ f_k(x_k) + \langle x_k, \sum_{j \in \mathcal{N}_k} (w_{kj}^t - w_{jk}^t) \rangle \Big\} + \frac{\beta}{2} \| (M \otimes I_d) \mathbf{x} \|^2 - \beta \langle (M \otimes I_d) \mathbf{x}, \mathbf{d}^t \rangle \\
+  &~ \quad \quad \quad \quad + \beta \| (N \otimes I_d) \mathbf{x} \|^2 - \frac{\beta}{2} \| (M \otimes I_d) \mathbf{x} \|^2 - \langle (P \otimes I_d) \mathbf{x}^t, \mathbf{x} \rangle \\
+  = &~\operatorname*{argmin}_{\mathbf{x}} \sum_{k \in \mathcal{V}} \Bigg\{ f_k(x_k) + \langle x_k, \sum_{j \in \mathcal{N}_k} (w_{kj}^t - w_{jk}^t - \beta d_{kj}^t + \beta d_{jk}^t - \beta x_j^t) - \beta | \mathcal{N}_k | x_k^t \rangle + \beta | \mathcal{N}_k | \| x_k \|^2  \Bigg\} \\
+  = &~\Bigg(\operatorname*{argmin}_{x_k} \Bigg\{f_k(x_k) + \beta | \mathcal{N}_k | \cdot \Big\| x_k - \frac{\beta | \mathcal{N}_k | x_k^t - \sum_{j \in \mathcal{N}_k} (w_{kj}^t - w_{jk}^t - \beta d_{kj}^t + \beta d_{jk}^t - \beta x_j^t) }{2\beta | \mathcal{N}_k |} \Big\|^2 \Bigg\}\Bigg)_{k \in \mathcal{V}} \\
+  = &~\left( \textrm{prox}_{\frac{f_k}{2\beta | \mathcal{N}_k |}} \Big( \frac{\beta | \mathcal{N}_k | x_k^t - \sum_{j \in \mathcal{N}_k} (w_{kj}^t - w_{jk}^t - \beta d_{kj}^t + \beta d_{jk}^t - \beta x_j^t)}{2\beta | \mathcal{N}_k |} \Big) \right)_{k \in \mathcal{V}}.
+\end{align*}
+
+The \(\mathbf{d}\)-update remains unchanged, and is given by \[
+\begin{aligned}
+  & ~\mathbf{d}^{t+1} = \operatorname*{argmin}_{\mathbf{d}} \mathcal{L}_{\beta}(\mathbf{x}^{t+1}, \mathbf{d}, \mathbf{w}^t) \\
+  = &~\operatorname*{argmin}_{\mathbf{d}} \left\{ \sum_{(i, j) \in \mathcal{E}} \left(\lambda \| d_{ij} \|_1 - \langle d_{ij}, w_{ij}^t + \beta (x_i^t - x_j^t) \rangle + \frac{\beta}{2} \| d_{ij} \|^2 \right) \right\} \\
+  = &~\left( \textrm{prox}_{\frac{\lambda}{\beta}\| \cdot \|_1} \Big( \frac{w_{ij}^t + \beta (x_i^t - x_j^t)}{\beta} \Big) \right)_{(i, j) \in \mathcal{E}}.
+\end{aligned}
+\]
+
+Therefore, we obtain the ADMM to solve (\ref{eq-opt-prob}).
+
+\section*{Reference}\label{reference}
+\addcontentsline{toc}{section}{Reference}
+
+\phantomsection\label{refs}
+\begin{CSLReferences}{1}{0}
+\bibitem[\citeproctext]{ref-FPST2013}
+Fazel, Maryam, Ting Kei Pong, Defeng Sun, and Paul Tseng. 2013.
+{``Hankel Matrix Rank Minimization with Applications to System
+Identification and Realization.''} \emph{SIAM Journal on Matrix Analysis
+and Applications} 34 (3): 946--77.
+\url{https://doi.org/10.1137/110853996}.
+
+\bibitem[\citeproctext]{ref-LP2015}
+Li, Guoyin, and Ting Kei Pong. 2015. {``Global Convergence of Splitting
+Methods for Nonconvex Composite Optimization.''} \emph{SIAM Journal on
+Optimization} 25 (4): 2434--60. \url{https://doi.org/10.1137/140998135}.
+
+\end{CSLReferences}
+
+
+
+
+\end{document}

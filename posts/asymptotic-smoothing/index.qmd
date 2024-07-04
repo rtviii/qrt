@@ -1,0 +1,268 @@
+---
+title: "Asymptotic Smoothing"
+author:
+  - name: "Michael P. Friedlander" 
+    url: "https://friedlander.io"
+    email: "michael.friedlander@ubc.ca"
+date: "21 April 2016"
+categories: [duality, smoothing, optimization, semidefinite programming, linear programming]
+description: |
+    This note explores some duality relations that arise in the context of asymptotic smoothing and its possible application to linear and semidefinite programming.
+---
+
+## Problem statement
+
+{{< include /_macros.qmd >}}
+
+Consider the primal-dual pair of semidefinite optimization problems
+$$
+\begin{align}
+  &\minimize{x}\quad \ip{c, x} \quad\st\quad Ax=b,\ x\succeq0,
+\\&\maximize{y}\quad \ip{b, y} \quad\st\quad A^*y\preceq c. 
+\end{align}
+$${#eq-1pr}
+The dual conic constraint $A^*y\preceq c$ is equivalent to the functional constraint
+$$
+  \max_{i=1:n}\ \lambda_i(A^*y-c) \le 0,
+$$
+and we might consider replacing the _max_ function with the
+smooth approximation
+$$
+ g_\mu = \mu\log\sum_i^p\exp((\cdot)_i/\mu).
+$$
+(With $p=n$, this is the usual _soft-max_ approximation of the
+_max_ function.)
+
+One approach to solve the resulting smoothed problem
+$$
+  \maximize{y} \quad \ip{b,y} \quad\st\quad (g_\mu\circ\lambda)(A^*y-c)\le 0
+$${#eq-2}
+is to apply the level-set method [@2016aravkinlevel]. This requires approximately solving the sequence of level-set problems
+$$
+  \minimize{y} \quad (g_\mu\circ\lambda)(A^*y-c) \quad\st\quad \ip{b,y} \ge-\tau_k
+$$
+for a sequence $\tau_k$ that converges to the optimal value. (The negative sign on $\tau_k$ accounts for the direction of optimization in these last two problems.)
+
+One question arises: what is the relationship between the smooth approximation (@eq-2) and the original primal problem (@eq-1pr)? We can make a bit of progress towards answering this question by thinking of $g_\mu$ as the infimal-convolution of the _max_ function with a smooth kernel, and then deriving an explicit expression for the corresponding perturbed primal problem.
+
+## Notation
+
+Let $f$ be a convex function. The $\sigma$ level set of $f$ is denoted $[f\le\sigma]=\{z\mid f(z)\le\sigma\}$. The perspective of $f$ is $f_\beta=\beta f(\cdot/\beta)$. This expression for the support function to a level set will be useful in several places:
+$$
+\begin{align*}
+  \delta^*_{[f\le\sigma]}(z)
+   = \sup_x\left\{ \ip{z,x} \mid f(x)\le\sigma \right\}
+   = \inf_{\beta\ge0} \left\{ \beta\sigma + (f^*)_\beta(z) \right\}.
+\end{align*}
+$$
+(This assumes that the level set $[f\le\sigma]$ has a non-empty interior.) Let $\lambda(X)$ be the vector of (sorted) eigenvalues of the symmetric matrix $X$.
+
+## Primal-dual pairs
+
+It seems best for this exercise to work with the generic problem
+$$
+  \minimize{x}\quad\ip{c,x} + \phi(x) \quad\st\quad\rho(Ax-b)\le\sigma,
+$${#eq-3}
+where $\phi:\Xscr\to\Re\cup\{+\infty\}$ and $\rho:\Yscr\to\Re\cup\{+\infty\}$ are convex functions, and $A:\Xscr\mapsto\Yscr$ is a linear operator. We'll use this to derive a primal-dual pair that makes explicit the features we need. Move the constraint above into the objective to obtain the equivalent problem
+$$
+  \minimize{x}\quad\ip{c,x}+ \phi(x) + \delta_{[\rho\le\sigma]}(Ax-b),
+$$
+which has the Fenchel dual
+$$
+  \maximize{y}\quad\ip{b,y}-\phi^*(A^*y-c) - \delta^*_{[\rho\le\sigma]}(-y).
+$${#eq-4}
+
+Let's now make a seemingly odd modeling assumption that $\phi$ is given as the support function to a level set, i.e.,
+$$
+  \phi = \delta^*_{[\kappa\le\epsilon]},
+$$
+for some convex function $\kappa$.  Then the problems @eq-3 and @eq-4 reduce to the beautifully symmetric pair of dual problems
+$$
+\begin{alignat}{4}
+  &\minimize{x}        \label{}
+  &\quad& \ip{c,x} + \delta^*_{[\kappa\le\epsilon]}(x)
+  &\quad& \st
+  &\quad  \rho(Ax-b)&\le\sigma
+\\&\maximize{y} 
+  &\quad& \ip{b,y}- \delta^*_{[\rho\le\sigma]}(-y)
+  &\quad& \st
+  &\quad  \kappa(A^*y-c)&\le\epsilon.
+\end{alignat}
+$${#eq-symm-pair-pr}
+
+::: {.callout-note}
+### Example
+
+Let's confirm that this pair is correct. Let $\epsilon=0$,
+$\sigma\ge0$, $\kappa=\delta_{\preceq0}$, and
+$\rho=\norm{\cdot}$. Then
+$\delta^*_{[\kappa\le\epsilon]}=\delta_{\succeq0}$ and
+$\delta^*_{\rho\le\sigma}(-{\cdot})=\sigma\norm{\cdot}_*$. Substituting all of this into the above dual pair we get
+$$
+\begin{alignat*}{4}
+  &\minimize{x}
+  &\quad& \ip{c,x}
+  &\quad& \st
+  &\quad  \|Ax-b\|&\le\sigma,\ x\succeq0
+\\&\maximize{y}
+  &\quad& \ip{b,y} - \sigma\norm{y}_*
+  &\quad& \st
+  &\quad  A^*y\preceq c,
+\end{alignat*}
+$$
+as expected. Whew!
+:::
+
+## Asymptotic smoothing
+
+The asymptotic function is defined as the limiting case of the
+perspective function:
+$$
+  g_\infty := \lim_{\mu\to0^+} g_\mu.
+$$
+Suppose that $g$ is smooth. A surprising result @beck_SmoothingFirstOrder_2012 [Theorem 4.2] is that $g_\mu$ is the infimal
+convolution of itself with $g_\infty$, i.e.,
+$$
+  g_\mu = g_\infty \,\square\, g_\mu.
+$$
+Now take
+$$
+  \kappa := g_\mu = g_\infty \,\square\, g_\mu,
+$$
+so that
+$$
+  \kappa^* = (g_\infty)^* + (g_\mu)^* = (g_\infty)^* + \mu g^*.
+$$
+When we expand the expression for the support function to the level set $[\kappa\le\epsilon]$ we'll need the perspective of the conjugate:
+$$
+ (\kappa^*)_\beta =
+ \left[ 
+   (g_\infty)^* + \mu g^*
+ \right]_\beta
+ = ([g_\infty]^*)_\beta + \mu (g^*)_\beta
+$$
+Substitute this expression for $\kappa$ in the primal problem @eq-symm-pair-pr, and use the expression for the
+support function to the level set to get
+$$
+  \minimize{x;\,\beta\ge0}
+  \quad \ip{c,x}+ \beta\epsilon + ([g_\infty]^*)_\beta(x) + \mu (g^*)_\beta(x)
+  \quad\st\quad
+  \rho(Ax-b)\le\sigma.
+$${#eq-5}
+
+### Softmax smoothing for LP
+
+Let's apply the dual-constraint smoother to a linear program. (The SDP case will be similar.) Consider the following function and its conjugate:
+$$
+  g(z) = \log\sum_i^n\exp(z_i),
+  \quad
+  g^*(y) = \sum_i^n y_i\log y_i + \delta_\triangle(y),
+$$
+where $\delta_\triangle$ is the indicator on the unit simplex.  The corresponding perspective and its asymptote are the _soft-max_ and _max_ functions:
+$$
+  g_\mu(z) = \mu\log\sum_i^n\exp(z_i/\mu)
+  \quad\text{and}\quad
+  g_\infty(z) = \max_{i=1:n}\ z_i.
+$$
+Observe that $(g_\infty)^*=\delta_\triangle$, and so
+$$
+  ([g_\infty]^*)_\beta(w) = \beta\delta_\triangle(w/\beta)
+                          = \begin{cases}
+                              0 & \mbox{if $\ip{e,w}=\beta$, $w\ge0$}
+                           \\+\infty & \mbox{otherwise.}
+                            \end{cases}
+$${#eq-6}
+where $e$ is the vector of all ones.  Also,
+$$
+ (g^*)_\beta(x) = \beta g^*(x/\beta)
+ = \sum_i x_i\log(x_i/\beta)
+ + \beta\delta_\triangle(x/\beta).
+$$
+We now have everything we need to make the primal problem @eq-5
+explicit:
+$$
+  \minimize{x\ge0}
+  \quad
+  \ip{c+\epsilon e,x} + \underbrace{\mu\sum_i^n x_i\log(x_i/\ip {e,x})}_{(a)}
+               \quad\st\quad
+               \rho(Ax-b)\le\sigma,
+$$
+where we use @eq-6 to eliminate $\beta$ from the primal
+problem.
+
+### Softmax smoothing for SDP
+
+These ideas readily extend to the SDP case by instead working with $g\circ\lambda$. Because $g$ defined above is permutation invariant, $(g\circ\lambda)^*=g^*\circ\lambda$; see @lewis_ConvexAnalysisHermitian_1996. All of the arguments above will then translate to the SDP case, and we'll
+end up with the analogous primal problem
+$$
+  \minimize{x\succeq0}
+  \quad
+  \ip{c+\epsilon e,x} + \mu\sum_i^n \lambda_i(x)\log(\lambda_i(x)/\ip{e,x})
+               \quad\st\quad
+               \rho(Ax-b)\le\sigma,
+$$
+where $\ip{x,y}$ is the trace inner product between symmetric matrices $x$ and $y$, and $e$ is the identity matrix.
+
+Some comments:
+
+- The perturbation term (a) is a bit different than what we're used to seeing. The ``usual'' approach to smoothing is to add a strictly convex perturbation, e.g., $\mu/2\norm{\cdot}_2^2$, which results in a smooth dual objective. Interestingly, the dual constraint smoothing explored here gives rise to a perturbation that is homogenous degree 1.
+- Suppose that $x_\mu$ is the solution of the perturbed primal. How does $\norm{x_0-x_\mu}$ behave as a function of $\mu$, for the usual strictly-convex smoothing compared to this homogenous smoothing?
+- Next step is to define $g$ in terms of the first $p<n$ eigenvalues.
+
+## Strictly-convex smoothing
+
+Consider the primal-dual pair
+$$
+\begin{aligned}
+  \minimize{x} &\quad f(Ax) + g(x)
+\\\maximize{y} &\quad {-}f^*(-y) - g^*(A^*y).
+\end{aligned}
+$${#eq-7}
+A standard approach to smoothing is to add a strictly convex regularization function $h$ to the primal problem. We'll treat $g$ and $h$ together, and use the identity $(g+h)^*=g^*\infc h^*$, which gives the following primal-dual pair:
+$$
+\begin{aligned}
+  \minimize{x} &\quad f(Ax) + g(x) + h(x)
+\\\maximize{y} &\quad {-}{f^*(-y)} - (g^*\infc h^*)(A^*y).
+\end{aligned}
+$${#eq-8}
+Let's make the following choices for $g$ and $h$ (and give their
+corresponding conjugates):
+$$
+\begin{aligned}
+  g &= \delta_{\tau\Ball_1}, &\quad& g^* = \delta^*_{\tau\Ball_1} = \tau\norm{\cdot}_\infty,
+\\h &= \epsilon/2\norm{\cdot}^2, &\quad& h^* = 1/(2\epsilon)\norm{\cdot}^2.
+\end{aligned}
+$$
+Then,
+$$
+\begin{aligned}
+  (g^*\infc h^*) &= \inf_w\{ \tau\norm{w}_\infty+1/(2\epsilon)\norm{\cdot-w}^2\}
+               \\&= \tau\inf_w\{ \norm{w}_\infty+1/(2\tau\epsilon)\norm{\cdot-w}^2\}
+               \\&= \tau\env_{\tau\epsilon}\norm{\cdot}_\infty.
+\end{aligned}
+$$
+This gives the primal-dual pair
+$$
+\begin{aligned}
+  \minimize{x} &\quad \half\norm{Ax-b}^2 + \epsilon/2\norm{x}^2 \quad\st\quad\norm{x}_1\le\tau
+\\\maximize{y} &\quad \ip{b,y}- \half\norm{y}^2 -
+\tau\env_{\tau\epsilon}\norm{A\T y}_\infty.
+\end{aligned}
+$${#eq-7}
+
+To compute $\env_{\lambda}\norm{\cdot}_\infty$, we use
+Moreau's identity:
+$$
+\env_\lambda p(x) + \env_{1/\lambda} p^*(x/\lambda)= 1/(2\lambda)\norm{x}^2.
+$$
+Take $p=\norm{\cdot}=\delta^*_{\Ball_*}$, so that $p^*=\delta_{\Ball_*}$. In that case,
+$$
+ \env_{1/\lambda}p^*(x/\lambda)
+ = \env_{1/\lambda}\delta_{\Ball_*}(x/\lambda)
+ = 1/(2\lambda)\dist_{\lambda\Ball_*}^2(x),
+$$
+and so
+$$
+ \env_\lambda\norm{x} = 1/(2\lambda)\norm{x}^2 - 1/(2\lambda)\dist_{\lambda\Ball_*}^2(x).
+$$
+
